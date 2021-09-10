@@ -18,8 +18,13 @@
 
 # Initialization script for WKS Storyboard template
 
+import os
+import sys
+
 import bpy
+from bl_keymap_utils.io import keyconfig_import_from_data
 from bpy.app.handlers import persistent
+from bpy.types import Menu
 
 
 @persistent
@@ -64,11 +69,44 @@ def load_handler(dummy):
                 gpd = ob.data
                 gpd.onion_keyframe_type = 'ALL'
 
+
+# spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
+class VIEW3D_MT_PIE_wks_storyboard(Menu):
+    # label is displayed at the center of the pie menu.
+    bl_label = "WKS Storyboard Menu"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+classes = [
+    VIEW3D_MT_PIE_wks_storyboard,
+]
+
+
 def register():
     logger.debug("Registering module")
     bpy.app.handlers.load_factory_startup_post.append(load_handler)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
+    file_path = os.path.dirname(os.path.abspath(__file__))
+    file_name = os.path.splitext(os.path.basename(__file__))[0]
+    sys.path.append(file_path)
+    from .app_lib.Blender2DKeymap import KeyMap
+    keyconfig_import_from_data(file_name, KeyMap.keyconfig_data)
+    sys.path.remove(file_path)
+
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.addon
+    if kc:
+        km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
+        kmi = km.keymap_items.new("wm.call_menu_pie", type="E", value="PRESS")
+        kmi.properties.name = "VIEW3D_MT_PIE_wks_storyboard"
+        kmi.active = True
 
 def unregister():
     logger.debug("Unregistering module")
     bpy.app.handlers.load_factory_startup_post.remove(load_handler)
+    for cls in classes:
+        bpy.utils.unregister_class(cls)

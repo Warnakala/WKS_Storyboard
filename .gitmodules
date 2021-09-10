@@ -1,0 +1,3 @@
+[submodule "WKS_Storyboard/app_lib/Blender2DKeymap"]
+	path = WKS_Storyboard/app_lib/Blender2DKeymap
+	url = https://github.com/Warnakala/Blender2DKeymap.git

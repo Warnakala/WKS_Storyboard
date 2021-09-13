@@ -27,6 +27,9 @@ import bpy
 from bl_keymap_utils.io import keyconfig_import_from_data
 from bpy.app.handlers import persistent
 from bpy.types import Menu, Operator
+from mathutils import Vector
+
+SHOT_CTRL_NAME = "SHOT_CTRL"
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,40 @@ def load_handler(dummy):
             if ob.type == 'GPENCIL':
                 gpd = ob.data
                 gpd.onion_keyframe_type = 'ALL'
+
+
+def get_shot_ctrl_collection(scene):
+    shot_ctrl_collection = next((coll for coll in scene.collection.children
+                                 if coll.name.endswith(SHOT_CTRL_NAME)), None)
+    coll_name = scene.name + '_' + SHOT_CTRL_NAME
+    if shot_ctrl_collection is None:
+        shot_ctrl_collection = bpy.data.collections.new(coll_name)
+        scene.collection.children.link(shot_ctrl_collection)
+
+    if shot_ctrl_collection.name != coll_name:
+        shot_ctrl_collection.name = coll_name
+
+    return shot_ctrl_collection
+
+
+def get_shot_ctrl_rig(scene):
+    shot_ctrl_rig = next((obj for obj in scene.objects
+                          if obj.name.endswith(SHOT_CTRL_NAME) and obj.type == "ARMATURE"), None)
+    rig_name = scene.name + "_" + SHOT_CTRL_NAME
+    if shot_ctrl_rig is None:
+        rig_data = bpy.data.armatures.new(rig_name)
+        rig_data.display_type = "WIRE"
+        shot_ctrl_rig = bpy.data.objects.new(rig_name, rig_data)
+
+    coll = get_shot_ctrl_collection(scene)
+    if shot_ctrl_rig.name not in coll.objects:
+        coll.objects.link(shot_ctrl_rig)
+
+    if shot_ctrl_rig.name != rig_name:
+        shot_ctrl_rig.name = rig_name
+        shot_ctrl_rig.data.name = rig_name
+
+    return shot_ctrl_rig
 
 
 def get_shot(scene, frame=None, offset=0) -> (int, bpy.types.TimelineMarker):
@@ -139,6 +176,8 @@ class WKS_OT_shot_new(Operator):
 
     def execute(self, context):
         logger.info("CREATING SHOT")
+
+        bpy.ops.object.mode_set(mode="OBJECT")
         scene = context.scene
         marker_shot = get_shot(scene)
         if marker_shot:
@@ -156,6 +195,19 @@ class WKS_OT_shot_new(Operator):
             name_new_shot = create_shot_name(scene)
             scene.timeline_markers.new(name_new_shot, frame=frame_new_shot)
             scene.frame_set(frame_new_shot)
+
+            shot_ctrl_rig = get_shot_ctrl_rig(scene)
+            context.view_layer.objects.active = shot_ctrl_rig
+            bpy.ops.object.mode_set(mode="EDIT")
+            rig_data: bpy.types.Armature = shot_ctrl_rig.data
+            bone_list = [bone for bone in rig_data.edit_bones if bone.name == name_new_shot]
+            if len(bone_list) > 0:
+                bone = bone_list[0]
+            else:
+                bone = rig_data.edit_bones.new(name_new_shot)
+            bone.head = Vector((0.0, 0.0, 0.0))
+            bone.tail = Vector((0.0, -1.0, 0.0))
+            bpy.ops.object.mode_set(mode="OBJECT")
 
         return {"FINISHED"}
 

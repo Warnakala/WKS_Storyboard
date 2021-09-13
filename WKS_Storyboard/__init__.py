@@ -18,13 +18,17 @@
 
 # Initialization script for WKS Storyboard template
 
+import itertools
+import logging
 import os
 import sys
 
 import bpy
 from bl_keymap_utils.io import keyconfig_import_from_data
 from bpy.app.handlers import persistent
-from bpy.types import Menu
+from bpy.types import Menu, Operator
+
+logger = logging.getLogger(__name__)
 
 
 @persistent
@@ -70,6 +74,59 @@ def load_handler(dummy):
                 gpd.onion_keyframe_type = 'ALL'
 
 
+def get_shot(scene, frame=None, offset=0) -> (int, bpy.types.TimelineMarker):
+    """
+    Returns marker object for current shot, or None where 'current' is defined as shot with marker before and nearest
+    with frame number FRAME if specified, or current frame otherwise. OFFSET will get the shot before or after current
+    one.
+
+    :param scene:
+    :param frame:
+    :param offset:
+    :return:
+    """
+    frame_ref = frame or scene.frame_current
+    sort_key = (lambda m: m.frame)
+    group_key = (lambda m: m.frame <= frame_ref)
+    before, after = [], []
+    for v, i in itertools.groupby(sorted(scene.timeline_markers, key=sort_key), key=group_key):
+        if v:
+            before.extend(i)
+        else:
+            after.extend(i)
+
+    marker_obj = None
+    offset -= 1
+    if -len(before) <= offset < 0:
+        marker_obj = before[offset]
+    elif 0 <= offset < len(after):
+        marker_obj = after[offset]
+
+    if logger.level <= logging.DEBUG:
+        if marker_obj is None:
+            logger.debug("Marker not found")
+        else:
+            logger.debug("Found marker: {}".format(marker_obj.name))
+    return marker_obj
+
+
+class WKS_OT_shot_offset(Operator):
+    bl_idname = "wks_shot.shot_offset"
+    bl_label = "Shot Offset"
+
+    previous: bpy.props.BoolProperty(name="Previous Shot", description="Switch to previous shot.", default=False)
+
+    def execute(self, context):
+        scene = context.scene
+        marker_other_shot = get_shot(scene, offset=-1 if self.previous else 1)
+        if marker_other_shot is None:
+            self.report({"INFO"}, "No other shot to jump to.")
+        else:
+            scene.frame_set(marker_other_shot.frame)
+
+        return {"FINISHED"}
+
+
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
 class VIEW3D_MT_PIE_wks_storyboard(Menu):
     # label is displayed at the center of the pie menu.
@@ -79,7 +136,14 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         layout = self.layout
 
         pie = layout.menu_pie()
+        op = pie.operator("wks_shot.shot_offset", text="Prev. Shot")
+        op.previous = True
+        op = pie.operator("wks_shot.shot_offset", text="Next Shot")
+        op.previous = False
+
+
 classes = [
+    WKS_OT_shot_offset,
     VIEW3D_MT_PIE_wks_storyboard,
 ]
 

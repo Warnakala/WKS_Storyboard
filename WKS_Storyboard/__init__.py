@@ -110,6 +110,11 @@ def get_shot(scene, frame=None, offset=0) -> (int, bpy.types.TimelineMarker):
     return marker_obj
 
 
+def create_shot_name(scene):
+    shot_number = len(scene.timeline_markers) + 1
+    return "SHOT_{:03}".format(shot_number)
+
+
 class WKS_OT_shot_offset(Operator):
     bl_idname = "wks_shot.shot_offset"
     bl_label = "Shot Offset"
@@ -127,6 +132,34 @@ class WKS_OT_shot_offset(Operator):
         return {"FINISHED"}
 
 
+class WKS_OT_shot_new(Operator):
+    bl_idname = "wks_shot.new"
+    bl_label = "New Shot"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        logger.info("CREATING SHOT")
+        scene = context.scene
+        marker_shot = get_shot(scene)
+        if marker_shot:
+            frame_current_shot = marker_shot.frame
+            frame_new_shot = max(frame_current_shot + scene.render.fps, scene.frame_current)
+            marker_other_shot = get_shot(scene, frame=frame_new_shot + scene.render.fps - 1)
+            if marker_other_shot != marker_shot:
+                self.report({"WARNING"}, "Not enough excess duration to create a new shot here. "
+                                         "Any given shot must be at least one second long.")
+                frame_new_shot = None
+        else:
+            frame_new_shot = scene.frame_start
+
+        if frame_new_shot is not None:
+            name_new_shot = create_shot_name(scene)
+            scene.timeline_markers.new(name_new_shot, frame=frame_new_shot)
+            scene.frame_set(frame_new_shot)
+
+        return {"FINISHED"}
+
+
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
 class VIEW3D_MT_PIE_wks_storyboard(Menu):
     # label is displayed at the center of the pie menu.
@@ -140,10 +173,17 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         op.previous = True
         op = pie.operator("wks_shot.shot_offset", text="Next Shot")
         op.previous = False
+        op = pie.separator()
+        op = pie.separator()
+        op = pie.separator()
+        op = pie.separator()
+        op = pie.separator()
+        op = pie.operator("wks_shot.new")
 
 
 classes = [
     WKS_OT_shot_offset,
+    WKS_OT_shot_new,
     VIEW3D_MT_PIE_wks_storyboard,
 ]
 

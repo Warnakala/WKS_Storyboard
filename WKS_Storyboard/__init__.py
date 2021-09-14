@@ -111,6 +111,35 @@ def get_shot_ctrl_rig(scene):
     return shot_ctrl_rig
 
 
+def get_shot_obj_collection(scene, shot_name):
+    shot_obj_collection = next((coll for coll in scene.collection.children if coll.name == shot_name), None)
+    if shot_obj_collection is None:
+        shot_obj_collection = bpy.data.collections.new(shot_name)
+        scene.collection.children.link(shot_obj_collection)
+
+    return shot_obj_collection
+
+
+def get_layer_collection(view_layer, coll_name):
+    """
+    Returns view layer-specific wrapper for collection named COLL_NAME.
+
+    :param view_layer:
+    :param coll_name:
+    :return:
+    """
+    l_coll = None
+    l_coll_list = [view_layer.layer_collection]
+    while len(l_coll_list) > 0:
+        curr_l_coll = l_coll_list.pop()
+        if curr_l_coll.collection.name == coll_name:
+            l_coll = curr_l_coll
+            break
+        l_coll_list.extend(curr_l_coll.children)
+        
+    return l_coll
+
+
 def get_shot(scene, frame=None, offset=0) -> (int, bpy.types.TimelineMarker):
     """
     Returns marker object for current shot, or None where 'current' is defined as shot with marker before and nearest
@@ -208,6 +237,12 @@ class WKS_OT_shot_new(Operator):
             bone.head = Vector((0.0, 0.0, 0.0))
             bone.tail = Vector((0.0, -1.0, 0.0))
             bpy.ops.object.mode_set(mode="OBJECT")
+
+            coll = get_shot_obj_collection(scene, name_new_shot)
+            l_coll = get_layer_collection(context.view_layer, coll.name)
+            if l_coll is not None:
+                context.view_layer.active_layer_collection = l_coll
+
 
         return {"FINISHED"}
 

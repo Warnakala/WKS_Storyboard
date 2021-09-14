@@ -136,7 +136,7 @@ def get_layer_collection(view_layer, coll_name):
             l_coll = curr_l_coll
             break
         l_coll_list.extend(curr_l_coll.children)
-        
+
     return l_coll
 
 
@@ -281,16 +281,42 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         op = pie.operator("wks_shot.new")
 
 
+class VIEW3D_MT_wks_shot(bpy.types.Panel):
+    bl_idname = 'VIEW3D_MT_wks_shot'
+    bl_label = 'WKS Shot'
+    bl_category = ''
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="PLACEHOLDER")
+
+
 classes = [
     WKS_OT_shot_offset,
     WKS_OT_shot_new,
     VIEW3D_MT_PIE_wks_storyboard,
+    VIEW3D_MT_wks_shot,
 ]
+
+
+def header_panel(self, context: bpy.types.Context):
+    layout: bpy.types.UILayout = self.layout
+    layout.separator(factor=0.25)
+    layout.popover(VIEW3D_MT_wks_shot.bl_idname, text='Shots', )
+    op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_LEFT")
+    op.previous = True
+    op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_RIGHT")
+    op.previous = False
+    layout.operator("wks_shot.new", text="", icon="ADD")
+    layout.separator(factor=0.25)
 
 
 def register():
     logger.debug("Registering module")
     bpy.app.handlers.load_factory_startup_post.append(load_handler)
+    bpy.types.VIEW3D_MT_editor_menus.append(header_panel)
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -312,5 +338,6 @@ def register():
 def unregister():
     logger.debug("Unregistering module")
     bpy.app.handlers.load_factory_startup_post.remove(load_handler)
+    bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
     for cls in classes:
         bpy.utils.unregister_class(cls)

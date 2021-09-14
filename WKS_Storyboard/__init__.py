@@ -112,6 +112,22 @@ def get_shot_ctrl_rig(scene):
     return shot_ctrl_rig
 
 
+def get_shot_ctrl_bone(shot_ctrl_rig, shot_name):
+    bpy.ops.object.mode_set(mode="EDIT")
+    rig_data: bpy.types.Armature = shot_ctrl_rig.data
+    bone_list = [bone for bone in rig_data.edit_bones if bone.name == shot_name]
+    if len(bone_list) > 0:
+        edit_bone = bone_list[0]
+    else:
+        edit_bone = rig_data.edit_bones.new(shot_name)
+    edit_bone.head = Vector((0.0, 0.0, 0.0))
+    edit_bone.tail = Vector((0.0, -1.0, 0.0))
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bone = rig_data.bones[shot_name]
+
+    return bone
+
+
 def get_shot_obj_collection(scene, shot_name):
     shot_obj_collection = next((coll for coll in scene.collection.children if coll.name == shot_name), None)
     if shot_obj_collection is None:
@@ -245,17 +261,7 @@ class WKS_OT_shot_new(Operator):
 
             shot_ctrl_rig = get_shot_ctrl_rig(scene)
             context.view_layer.objects.active = shot_ctrl_rig
-            bpy.ops.object.mode_set(mode="EDIT")
-            rig_data: bpy.types.Armature = shot_ctrl_rig.data
-            bone_list = [bone for bone in rig_data.edit_bones if bone.name == name_new_shot]
-            if len(bone_list) > 0:
-                edit_bone = bone_list[0]
-            else:
-                edit_bone = rig_data.edit_bones.new(name_new_shot)
-            edit_bone.head = Vector((0.0, 0.0, 0.0))
-            edit_bone.tail = Vector((0.0, -1.0, 0.0))
-            bpy.ops.object.mode_set(mode="OBJECT")
-            bone = rig_data.bones[name_new_shot]
+            bone = get_shot_ctrl_bone(shot_ctrl_rig, name_new_shot)
 
             if marker_shot:
                 coll = get_shot_obj_collection(scene, marker_shot.name)

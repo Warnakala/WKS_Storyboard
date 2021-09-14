@@ -20,6 +20,7 @@
 
 import itertools
 import logging
+import math
 import os
 import sys
 
@@ -27,7 +28,7 @@ import bpy
 from bl_keymap_utils.io import keyconfig_import_from_data
 from bpy.app.handlers import persistent
 from bpy.types import Menu, Operator
-from mathutils import Vector
+from mathutils import Euler, Vector
 
 SHOT_CTRL_NAME = "SHOT_CTRL"
 
@@ -239,7 +240,7 @@ class WKS_OT_shot_new(Operator):
 
         if frame_new_shot is not None:
             name_new_shot = create_shot_name(scene)
-            scene.timeline_markers.new(name_new_shot, frame=frame_new_shot)
+            marker_new_shot = scene.timeline_markers.new(name_new_shot, frame=frame_new_shot)
             scene.frame_set(frame_new_shot)
 
             shot_ctrl_rig = get_shot_ctrl_rig(scene)
@@ -282,6 +283,12 @@ class WKS_OT_shot_new(Operator):
             camera_obj.parent = shot_ctrl_rig
             camera_obj.parent_type = "BONE"
             camera_obj.parent_bone = bone.name
+
+            camera_obj.rotation_mode = "XYZ"
+            camera_obj.location += Vector((0.0, 10.0, 0.0))
+            camera_obj.rotation_euler.rotate(Euler((math.radians(90), 0.0, math.radians(180))))
+            scene.camera = camera_obj
+            marker_new_shot.camera = camera_obj
 
         return {"FINISHED"}
 

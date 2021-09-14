@@ -251,6 +251,12 @@ class WKS_OT_shot_new(Operator):
             bone.tail = Vector((0.0, -1.0, 0.0))
             bpy.ops.object.mode_set(mode="OBJECT")
 
+            if marker_shot:
+                coll = get_shot_obj_collection(scene, marker_shot.name)
+                l_coll = get_layer_collection(context.view_layer, coll.name)
+                if l_coll is not None:
+                    l_coll.exclude = True
+
             coll = get_shot_obj_collection(scene, name_new_shot)
             l_coll = get_layer_collection(context.view_layer, coll.name)
             if l_coll is not None:

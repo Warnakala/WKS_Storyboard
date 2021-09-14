@@ -248,12 +248,13 @@ class WKS_OT_shot_new(Operator):
             rig_data: bpy.types.Armature = shot_ctrl_rig.data
             bone_list = [bone for bone in rig_data.edit_bones if bone.name == name_new_shot]
             if len(bone_list) > 0:
-                bone = bone_list[0]
+                edit_bone = bone_list[0]
             else:
-                bone = rig_data.edit_bones.new(name_new_shot)
-            bone.head = Vector((0.0, 0.0, 0.0))
-            bone.tail = Vector((0.0, -1.0, 0.0))
+                edit_bone = rig_data.edit_bones.new(name_new_shot)
+            edit_bone.head = Vector((0.0, 0.0, 0.0))
+            edit_bone.tail = Vector((0.0, -1.0, 0.0))
             bpy.ops.object.mode_set(mode="OBJECT")
+            bone = rig_data.bones[name_new_shot]
 
             if marker_shot:
                 coll = get_shot_obj_collection(scene, marker_shot.name)
@@ -266,6 +267,21 @@ class WKS_OT_shot_new(Operator):
             if l_coll is not None:
                 context.view_layer.active_layer_collection = l_coll
 
+            stroke_name = "pen-" + name_new_shot
+            stroke_data = bpy.data.grease_pencils.new(stroke_name)
+            stroke_obj = bpy.data.objects.new(stroke_name, stroke_data)
+            coll.objects.link(stroke_obj)
+            stroke_obj.parent = shot_ctrl_rig
+            stroke_obj.parent_type = "BONE"
+            stroke_obj.parent_bone = bone.name
+
+            camera_name = "cam-" + name_new_shot
+            camera_data = bpy.data.cameras.new(camera_name)
+            camera_obj = bpy.data.objects.new(camera_name, camera_data)
+            coll.objects.link(camera_obj)
+            camera_obj.parent = shot_ctrl_rig
+            camera_obj.parent_type = "BONE"
+            camera_obj.parent_bone = bone.name
 
         return {"FINISHED"}
 

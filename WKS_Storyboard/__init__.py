@@ -157,6 +157,28 @@ def get_layer_collection(view_layer, coll_name):
     return l_coll
 
 
+def get_stroke_obj(coll, shot_name):
+    stroke_obj = next((obj for obj in coll.objects if obj.type == "GPENCIL"), None)
+    if stroke_obj is None:
+        stroke_name = "pen-" + shot_name
+        stroke_data = bpy.data.grease_pencils.new(stroke_name)
+        stroke_obj = bpy.data.objects.new(stroke_name, stroke_data)
+        coll.objects.link(stroke_obj)
+
+    return stroke_obj
+
+
+def get_camera_obj(coll, shot_name):
+    camera_obj = next((obj for obj in coll.objects if obj.type == "CAMERA"), None)
+    if camera_obj is None:
+        camera_name = "cam-" + shot_name
+        camera_data = bpy.data.cameras.new(camera_name)
+        camera_obj = bpy.data.objects.new(camera_name, camera_data)
+        coll.objects.link(camera_obj)
+
+    return camera_obj
+
+
 def get_shot(scene, frame=None, offset=0) -> (int, bpy.types.TimelineMarker):
     """
     Returns marker object for current shot, or None where 'current' is defined as shot with marker before and nearest
@@ -243,16 +265,7 @@ class WKS_OT_shot_new(Operator):
         bpy.ops.object.mode_set(mode="OBJECT")
         scene = context.scene
         marker_shot = get_shot(scene)
-        if marker_shot:
-            frame_current_shot = marker_shot.frame
-            frame_new_shot = max(frame_current_shot + scene.render.fps, scene.frame_current)
-            marker_other_shot = get_shot(scene, frame=frame_new_shot + scene.render.fps - 1)
-            if marker_other_shot != marker_shot:
-                self.report({"WARNING"}, "Not enough excess duration to create a new shot here. "
-                                         "Any given shot must be at least one second long.")
-                frame_new_shot = None
-        else:
-            frame_new_shot = scene.frame_start
+        frame_new_shot = self.get_frame_new_shot(scene, marker_shot)
 
         if frame_new_shot is not None:
             name_new_shot = create_shot_name(scene)
@@ -274,21 +287,12 @@ class WKS_OT_shot_new(Operator):
             if l_coll is not None:
                 context.view_layer.active_layer_collection = l_coll
 
-            stroke_name = "pen-" + name_new_shot
-            stroke_data = bpy.data.grease_pencils.new(stroke_name)
-            stroke_obj = bpy.data.objects.new(stroke_name, stroke_data)
-            coll.objects.link(stroke_obj)
-            stroke_obj.parent = shot_ctrl_rig
-            stroke_obj.parent_type = "BONE"
-            stroke_obj.parent_bone = bone.name
-
-            camera_name = "cam-" + name_new_shot
-            camera_data = bpy.data.cameras.new(camera_name)
-            camera_obj = bpy.data.objects.new(camera_name, camera_data)
-            coll.objects.link(camera_obj)
-            camera_obj.parent = shot_ctrl_rig
-            camera_obj.parent_type = "BONE"
-            camera_obj.parent_bone = bone.name
+            stroke_obj = get_stroke_obj(coll, name_new_shot)
+            camera_obj = get_camera_obj(coll, name_new_shot)
+            for obj in (stroke_obj, camera_obj):
+                obj.parent = shot_ctrl_rig
+                obj.parent_type = "BONE"
+                obj.parent_bone = bone.name
 
             camera_obj.rotation_mode = "XYZ"
             camera_obj.location += Vector((0.0, 10.0, 0.0))
@@ -297,6 +301,20 @@ class WKS_OT_shot_new(Operator):
             marker_new_shot.camera = camera_obj
 
         return {"FINISHED"}
+
+    def get_frame_new_shot(self, scene: bpy.types.Scene, marker_shot: bpy.types.TimelineMarker) -> int:
+        if marker_shot:
+            frame_current_shot = marker_shot.frame
+            frame_new_shot = max(frame_current_shot + scene.render.fps, scene.frame_current)
+            marker_other_shot = get_shot(scene, frame=frame_new_shot + scene.render.fps - 1)
+            if marker_other_shot != marker_shot:
+                self.report({"WARNING"}, "Not enough excess duration to create a new shot here. "
+                                         "Any given shot must be at least one second long.")
+                frame_new_shot = None
+        else:
+            frame_new_shot = scene.frame_start
+
+        return frame_new_shot
 
 
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)

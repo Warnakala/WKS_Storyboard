@@ -184,6 +184,8 @@ def create_shot_name(scene):
 class WKS_OT_shot_offset(Operator):
     bl_idname = "wks_shot.shot_offset"
     bl_label = "Shot Offset"
+    bl_description = "Jump to another shot relative to current one."
+    bl_options = {"REGISTER"}
 
     previous: bpy.props.BoolProperty(name="Previous Shot", description="Switch to previous shot.", default=False)
 
@@ -214,6 +216,8 @@ class WKS_OT_shot_offset(Operator):
 class WKS_OT_shot_new(Operator):
     bl_idname = "wks_shot.new"
     bl_label = "New Shot"
+    bl_description = "Create a new shot. Current shot must have enough duration for both itself and the new shot "\
+                     "(min. duration: 1 second)."
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):

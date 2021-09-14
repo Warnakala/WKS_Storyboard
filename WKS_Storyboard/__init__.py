@@ -115,13 +115,13 @@ def get_shot_ctrl_rig(scene):
 def get_shot_ctrl_bone(shot_ctrl_rig, shot_name):
     bpy.ops.object.mode_set(mode="EDIT")
     rig_data: bpy.types.Armature = shot_ctrl_rig.data
-    bone_list = [bone for bone in rig_data.edit_bones if bone.name == shot_name]
+    bone_list = [edit_bone for edit_bone in rig_data.edit_bones if edit_bone.name == shot_name]
     if len(bone_list) > 0:
         edit_bone = bone_list[0]
     else:
         edit_bone = rig_data.edit_bones.new(shot_name)
-    edit_bone.head = Vector((0.0, 0.0, 0.0))
-    edit_bone.tail = Vector((0.0, -1.0, 0.0))
+    edit_bone.head = Vector((0.0, 1.0, 0.0))
+    edit_bone.tail = Vector((0.0, 0.0, 0.0))
     bpy.ops.object.mode_set(mode="OBJECT")
     bone = rig_data.bones[shot_name]
 
@@ -233,7 +233,7 @@ class WKS_OT_shot_offset(Operator):
 class WKS_OT_shot_new(Operator):
     bl_idname = "wks_shot.new"
     bl_label = "New Shot"
-    bl_description = "Create a new shot. Current shot must have enough duration for both itself and the new shot "\
+    bl_description = "Create a new shot. Current shot must have enough duration for both itself and the new shot " \
                      "(min. duration: 1 second)."
     bl_options = {"REGISTER", "UNDO"}
 
@@ -301,6 +301,7 @@ class WKS_OT_shot_new(Operator):
 
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
 class VIEW3D_MT_PIE_wks_storyboard(Menu):
+    bl_idname = "VIEW3D_MT_PIE_wks_storyboard"
     # label is displayed at the center of the pie menu.
     bl_label = "WKS Storyboard Menu"
 
@@ -371,7 +372,7 @@ def register():
     if kc:
         km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
         kmi = km.keymap_items.new("wm.call_menu_pie", type="E", value="PRESS")
-        kmi.properties.name = "VIEW3D_MT_PIE_wks_storyboard"
+        kmi.properties.name = VIEW3D_MT_PIE_wks_storyboard.bl_idname
         kmi.active = True
 
 def unregister():

@@ -135,7 +135,7 @@ def get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name) -> bpy.types.Bone:
             edit_bone = bone_list[0]
         else:
             edit_bone = rig_data.edit_bones.new(shot_name)
-        edit_bone.head = Vector((0.0, 1.0, 0.0))
+        edit_bone.head = Vector((0.0, -1.0, 0.0))
         edit_bone.tail = Vector((0.0, 0.0, 0.0))
         bpy.ops.object.mode_set(mode="OBJECT")
     bone = rig_data.bones[shot_name]
@@ -190,6 +190,10 @@ def get_camera_obj(coll, shot_name) -> bpy.types.Object:
         camera_data = bpy.data.cameras.new(camera_name)
         camera_obj = bpy.data.objects.new(camera_name, camera_data)
         coll.objects.link(camera_obj)
+
+        camera_obj.rotation_mode = "XYZ"
+        camera_obj.location += Vector((0.0, -10.0, 0.0))
+        camera_obj.rotation_euler.rotate(Euler((math.radians(90), 0.0, 0.0)))
 
     return camera_obj
 
@@ -343,9 +347,6 @@ class WKS_OT_shot_new(Operator):
             obj_list = (stroke_obj, camera_obj)
             parent_to_shot_controller(context, name_new_shot, obj_list)
 
-            camera_obj.rotation_mode = "XYZ"
-            camera_obj.location += Vector((0.0, 10.0, 0.0))
-            camera_obj.rotation_euler.rotate(Euler((math.radians(90), 0.0, math.radians(180))))
             scene.camera = camera_obj
             marker_new_shot.camera = camera_obj
             set_active_stroke_obj(context, stroke_obj)

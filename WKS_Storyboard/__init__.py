@@ -220,6 +220,13 @@ def create_shot_name(scene):
     return "SHOT_{:03}".format(shot_number)
 
 
+def set_active_stroke_obj(context, stroke_obj):
+    if context.active_object is not None:
+        bpy.ops.object.mode_set(mode="OBJECT")
+    context.view_layer.objects.active = stroke_obj
+    bpy.ops.object.mode_set(mode="PAINT_GPENCIL")
+
+
 class WKS_OT_shot_offset(Operator):
     bl_idname = "wks_shot.shot_offset"
     bl_label = "Shot Offset"
@@ -248,6 +255,9 @@ class WKS_OT_shot_offset(Operator):
             if l_coll is not None:
                 l_coll.exclude = False
                 context.view_layer.active_layer_collection = l_coll
+
+            stroke_obj = get_stroke_obj(l_coll.collection, other_shot_name)
+            set_active_stroke_obj(context, stroke_obj)
 
         return {"FINISHED"}
 
@@ -299,6 +309,7 @@ class WKS_OT_shot_new(Operator):
             camera_obj.rotation_euler.rotate(Euler((math.radians(90), 0.0, math.radians(180))))
             scene.camera = camera_obj
             marker_new_shot.camera = camera_obj
+            set_active_stroke_obj(context, stroke_obj)
 
         return {"FINISHED"}
 

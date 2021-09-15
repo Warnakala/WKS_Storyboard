@@ -78,7 +78,7 @@ def load_handler(dummy):
                 gpd.onion_keyframe_type = 'ALL'
 
 
-def get_shot_ctrl_collection(scene):
+def get_shot_ctrl_collection(scene) -> bpy.types.Collection:
     shot_ctrl_collection = next((coll for coll in scene.collection.children
                                  if coll.name.endswith(SHOT_CTRL_NAME)), None)
     coll_name = scene.name + '_' + SHOT_CTRL_NAME
@@ -92,7 +92,7 @@ def get_shot_ctrl_collection(scene):
     return shot_ctrl_collection
 
 
-def get_shot_ctrl_rig(scene):
+def get_shot_ctrl_rig(scene) -> bpy.types.Armature:
     shot_ctrl_rig = next((obj for obj in scene.objects
                           if obj.name.endswith(SHOT_CTRL_NAME) and obj.type == "ARMATURE"), None)
     rig_name = scene.name + "_" + SHOT_CTRL_NAME
@@ -112,7 +112,7 @@ def get_shot_ctrl_rig(scene):
     return shot_ctrl_rig
 
 
-def get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name):
+def get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name) -> bpy.types.Bone:
     """
     Returns control bone for shot SHOT_NAME within SHOT_CTRL_RIG. If nonexistent, SHOT_CTRL_RIG will be activated and
     control bone created in Edit Mode.
@@ -143,7 +143,7 @@ def get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name):
     return bone
 
 
-def get_shot_obj_collection(scene, shot_name):
+def get_shot_obj_collection(scene, shot_name) -> bpy.types.Collection:
     shot_obj_collection = next((coll for coll in scene.collection.children if coll.name == shot_name), None)
     if shot_obj_collection is None:
         shot_obj_collection = bpy.data.collections.new(shot_name)
@@ -152,7 +152,7 @@ def get_shot_obj_collection(scene, shot_name):
     return shot_obj_collection
 
 
-def get_layer_collection(view_layer, coll_name):
+def get_layer_collection(view_layer, coll_name) -> bpy.types.LayerCollection:
     """
     Returns view layer-specific wrapper for collection named COLL_NAME.
 
@@ -172,7 +172,7 @@ def get_layer_collection(view_layer, coll_name):
     return l_coll
 
 
-def get_stroke_obj(coll, shot_name):
+def get_stroke_obj(coll, shot_name) -> bpy.types.Object:
     stroke_obj = next((obj for obj in coll.objects if obj.type == "GPENCIL"), None)
     if stroke_obj is None:
         stroke_name = "pen-" + shot_name
@@ -183,7 +183,7 @@ def get_stroke_obj(coll, shot_name):
     return stroke_obj
 
 
-def get_camera_obj(coll, shot_name):
+def get_camera_obj(coll, shot_name) -> bpy.types.Object:
     camera_obj = next((obj for obj in coll.objects if obj.type == "CAMERA"), None)
     if camera_obj is None:
         camera_name = "cam-" + shot_name
@@ -194,7 +194,7 @@ def get_camera_obj(coll, shot_name):
     return camera_obj
 
 
-def get_shot(scene, frame=None, offset=0) -> (int, bpy.types.TimelineMarker):
+def get_shot(scene, frame=None, offset=0) -> bpy.types.TimelineMarker:
     """
     Returns marker object for current shot, or None where 'current' is defined as shot with marker before and nearest
     with frame number FRAME if specified, or current frame otherwise. OFFSET will get the shot before or after current

@@ -234,17 +234,18 @@ def get_shot(scene, frame=None, offset=0) -> bpy.types.TimelineMarker:
     return marker_obj
 
 
-def set_active_shot(context, marker_shot, hide_current=True):
+def set_active_shot(context, marker_shot, current=False):
     """
-    Set the shot marked by MARKER_SHOT as the active one. If HIDE_CURRENT is True, will also check and hide shot at
-    current frame.
+    Set the shot marked by MARKER_SHOT as the active one. If the shot to be activated is the current one, set CURRENT
+    to True: previous shot will not be checked and hidden.
 
     :param context:
     :param marker_shot:
-    :param hide_current:
+    :param current:
     """
+    other_shot_name = marker_shot.name
     scene = context.scene
-    if hide_current:
+    if not current:
         marker_current_shot = get_shot(scene)
         if marker_current_shot is not None and marker_current_shot != marker_shot:
             shot_name = marker_current_shot.name
@@ -254,13 +255,21 @@ def set_active_shot(context, marker_shot, hide_current=True):
 
     scene.frame_set(marker_shot.frame)
 
-    other_shot_name = marker_shot.name
-    l_coll = get_layer_collection(context.view_layer, other_shot_name)
+    coll = get_shot_obj_collection(scene, other_shot_name)
+    l_coll = get_layer_collection(context.view_layer, coll.name)
     if l_coll is not None:
         l_coll.exclude = False
         context.view_layer.active_layer_collection = l_coll
-    stroke_obj = get_stroke_obj(l_coll.collection, other_shot_name)
+
+
+def activate_shot_objects(context, shot_name):
+    scene = context.scene
+    coll = get_shot_obj_collection(scene, shot_name)
+
+    stroke_obj = get_stroke_obj(coll, shot_name)
+    camera_obj = get_camera_obj(coll, shot_name)
     set_active_stroke_obj(context, stroke_obj)
+    scene.camera = camera_obj
 
 
 def create_shot_name(scene):
@@ -302,11 +311,12 @@ class WKS_OT_shot_offset(Operator):
 
     def execute(self, context):
         scene = context.scene
-        marker_other_shot = get_shot(scene, offset=self.offset)
-        if marker_other_shot is None:
+        shot_name = get_shot(scene, offset=self.offset)
+        if shot_name is None:
             self.report({"INFO"}, "No other shot to jump to.")
         else:
-            set_active_shot(context, marker_other_shot)
+            set_active_shot(context, shot_name)
+            activate_shot_objects(context, shot_name.name)
 
         return {"FINISHED"}
 
@@ -329,27 +339,16 @@ class WKS_OT_shot_new(Operator):
         if frame_new_shot is not None:
             name_new_shot = create_shot_name(scene)
             marker_new_shot = scene.timeline_markers.new(name_new_shot, frame=frame_new_shot)
-            scene.frame_set(frame_new_shot)
-
-            if marker_shot:
-                coll = get_shot_obj_collection(scene, marker_shot.name)
-                l_coll = get_layer_collection(context.view_layer, coll.name)
-                if l_coll is not None:
-                    l_coll.exclude = True
+            set_active_shot(context, marker_new_shot)
 
             coll = get_shot_obj_collection(scene, name_new_shot)
-            l_coll = get_layer_collection(context.view_layer, coll.name)
-            if l_coll is not None:
-                context.view_layer.active_layer_collection = l_coll
-
             stroke_obj = get_stroke_obj(coll, name_new_shot)
             camera_obj = get_camera_obj(coll, name_new_shot)
             obj_list = (stroke_obj, camera_obj)
             parent_to_shot_controller(context, name_new_shot, obj_list)
 
-            scene.camera = camera_obj
             marker_new_shot.camera = camera_obj
-            set_active_stroke_obj(context, stroke_obj)
+            activate_shot_objects(context, name_new_shot)
 
         return {"FINISHED"}
 

@@ -230,6 +230,35 @@ def get_shot(scene, frame=None, offset=0) -> (int, bpy.types.TimelineMarker):
     return marker_obj
 
 
+def set_active_shot(context, marker_shot, hide_current=True):
+    """
+    Set the shot marked by MARKER_SHOT as the active one. If HIDE_CURRENT is True, will also check and hide shot at
+    current frame.
+
+    :param context:
+    :param marker_shot:
+    :param hide_current:
+    """
+    scene = context.scene
+    if hide_current:
+        marker_current_shot = get_shot(scene)
+        if marker_current_shot is not None and marker_current_shot != marker_shot:
+            shot_name = marker_current_shot.name
+            l_coll = get_layer_collection(context.view_layer, shot_name)
+            if l_coll is not None:
+                l_coll.exclude = True
+
+    scene.frame_set(marker_shot.frame)
+
+    other_shot_name = marker_shot.name
+    l_coll = get_layer_collection(context.view_layer, other_shot_name)
+    if l_coll is not None:
+        l_coll.exclude = False
+        context.view_layer.active_layer_collection = l_coll
+    stroke_obj = get_stroke_obj(l_coll.collection, other_shot_name)
+    set_active_stroke_obj(context, stroke_obj)
+
+
 def create_shot_name(scene):
     shot_number = len(scene.timeline_markers) + 1
     return "SHOT_{:03}".format(shot_number)
@@ -256,23 +285,7 @@ class WKS_OT_shot_offset(Operator):
         if marker_other_shot is None:
             self.report({"INFO"}, "No other shot to jump to.")
         else:
-            marker_shot = get_shot(scene)
-            if marker_shot is not None:
-                shot_name = marker_shot.name
-                l_coll = get_layer_collection(context.view_layer, shot_name)
-                if l_coll is not None:
-                    l_coll.exclude = True
-
-            scene.frame_set(marker_other_shot.frame)
-
-            other_shot_name = marker_other_shot.name
-            l_coll = get_layer_collection(context.view_layer, other_shot_name)
-            if l_coll is not None:
-                l_coll.exclude = False
-                context.view_layer.active_layer_collection = l_coll
-
-            stroke_obj = get_stroke_obj(l_coll.collection, other_shot_name)
-            set_active_stroke_obj(context, stroke_obj)
+            set_active_shot(context, marker_other_shot)
 
         return {"FINISHED"}
 

@@ -271,6 +271,23 @@ def set_active_stroke_obj(context, stroke_obj):
     bpy.ops.object.mode_set(mode="PAINT_GPENCIL")
 
 
+def parent_to_shot_controller(context, shot_name, obj_list):
+    """
+    Parent objects in OBJ_LIST to the controller for shot SHOT_NAME.
+
+    :param context:
+    :param shot_name:
+    :param obj_list:
+    """
+    scene = context.scene
+    shot_ctrl_rig = get_shot_ctrl_rig(scene)
+    bone = get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name)
+    for obj in obj_list:
+        obj.parent = shot_ctrl_rig
+        obj.parent_type = "BONE"
+        obj.parent_bone = bone.name
+
+
 class WKS_OT_shot_offset(Operator):
     bl_idname = "wks_shot.shot_offset"
     bl_label = "Shot Offset"
@@ -301,6 +318,7 @@ class WKS_OT_shot_new(Operator):
         logger.info("CREATING SHOT")
 
         scene = context.scene
+        coll = get_shot_ctrl_collection(scene)  # create collection for shot controller before ones for any shot
         marker_shot = get_shot(scene)
         frame_new_shot = self.get_frame_new_shot(scene, marker_shot)
 
@@ -308,9 +326,6 @@ class WKS_OT_shot_new(Operator):
             name_new_shot = create_shot_name(scene)
             marker_new_shot = scene.timeline_markers.new(name_new_shot, frame=frame_new_shot)
             scene.frame_set(frame_new_shot)
-
-            shot_ctrl_rig = get_shot_ctrl_rig(scene)
-            bone = get_shot_ctrl_bone(context, shot_ctrl_rig, name_new_shot)
 
             if marker_shot:
                 coll = get_shot_obj_collection(scene, marker_shot.name)
@@ -325,10 +340,8 @@ class WKS_OT_shot_new(Operator):
 
             stroke_obj = get_stroke_obj(coll, name_new_shot)
             camera_obj = get_camera_obj(coll, name_new_shot)
-            for obj in (stroke_obj, camera_obj):
-                obj.parent = shot_ctrl_rig
-                obj.parent_type = "BONE"
-                obj.parent_bone = bone.name
+            obj_list = (stroke_obj, camera_obj)
+            parent_to_shot_controller(context, name_new_shot, obj_list)
 
             camera_obj.rotation_mode = "XYZ"
             camera_obj.location += Vector((0.0, 10.0, 0.0))

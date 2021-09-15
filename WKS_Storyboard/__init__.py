@@ -367,6 +367,25 @@ class WKS_OT_shot_new(Operator):
         return frame_new_shot
 
 
+class WKS_OT_shot_reparent_objects(Operator):
+    bl_idname = "wks_shot.reparent_objects"
+    bl_label = "Reparent Objects"
+    bl_description = "Reparent objects within a shot-specific Collection to the shot's controller. Necessary for" \
+                     " proper shot switching in playback."
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        marker_shot = get_shot(context.scene)
+        if marker_shot is not None:
+            set_active_shot(context, marker_shot, current=True)
+            shot_name = marker_shot.name
+            coll = get_shot_obj_collection(context.scene, shot_name)
+
+            parent_to_shot_controller(context, shot_name, coll.all_objects)
+
+        return {"FINISHED"}
+
+
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
 class VIEW3D_MT_PIE_wks_storyboard(Menu):
     bl_idname = "VIEW3D_MT_PIE_wks_storyboard"
@@ -382,7 +401,9 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         op = pie.operator("wks_shot.shot_offset", text="Next Shot")
         op.offset = 1
         op = pie.separator()
-        op = pie.separator()
+        column = pie.column()
+        column.scale_y = 1.5
+        column.operator("wks_shot.reparent_objects")
         op = pie.separator()
         op = pie.separator()
         op = pie.separator()
@@ -404,6 +425,7 @@ class VIEW3D_MT_wks_shot(bpy.types.Panel):
 classes = [
     WKS_OT_shot_offset,
     WKS_OT_shot_new,
+    WKS_OT_shot_reparent_objects,
     VIEW3D_MT_PIE_wks_storyboard,
     VIEW3D_MT_wks_shot,
 ]

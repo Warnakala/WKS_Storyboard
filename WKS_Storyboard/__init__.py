@@ -112,17 +112,32 @@ def get_shot_ctrl_rig(scene):
     return shot_ctrl_rig
 
 
-def get_shot_ctrl_bone(shot_ctrl_rig, shot_name):
-    bpy.ops.object.mode_set(mode="EDIT")
+def get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name):
+    """
+    Returns control bone for shot SHOT_NAME within SHOT_CTRL_RIG. If nonexistent, SHOT_CTRL_RIG will be activated and
+    control bone created in Edit Mode.
+
+    :param context:
+    :param shot_ctrl_rig:
+    :param shot_name:
+    :return:
+    """
     rig_data: bpy.types.Armature = shot_ctrl_rig.data
-    bone_list = [edit_bone for edit_bone in rig_data.edit_bones if edit_bone.name == shot_name]
-    if len(bone_list) > 0:
-        edit_bone = bone_list[0]
-    else:
-        edit_bone = rig_data.edit_bones.new(shot_name)
-    edit_bone.head = Vector((0.0, 1.0, 0.0))
-    edit_bone.tail = Vector((0.0, 0.0, 0.0))
-    bpy.ops.object.mode_set(mode="OBJECT")
+    bone = next((bone for bone in rig_data.bones if bone.name == shot_name), None)
+    if bone is None:
+        if context.active_object:
+            bpy.ops.object.mode_set(mode="OBJECT")
+        context.view_layer.objects.active = shot_ctrl_rig
+
+        bpy.ops.object.mode_set(mode="EDIT")
+        bone_list = [edit_bone for edit_bone in rig_data.edit_bones if edit_bone.name == shot_name]
+        if len(bone_list) > 0:
+            edit_bone = bone_list[0]
+        else:
+            edit_bone = rig_data.edit_bones.new(shot_name)
+        edit_bone.head = Vector((0.0, 1.0, 0.0))
+        edit_bone.tail = Vector((0.0, 0.0, 0.0))
+        bpy.ops.object.mode_set(mode="OBJECT")
     bone = rig_data.bones[shot_name]
 
     return bone
@@ -272,7 +287,6 @@ class WKS_OT_shot_new(Operator):
     def execute(self, context):
         logger.info("CREATING SHOT")
 
-        bpy.ops.object.mode_set(mode="OBJECT")
         scene = context.scene
         marker_shot = get_shot(scene)
         frame_new_shot = self.get_frame_new_shot(scene, marker_shot)
@@ -283,8 +297,7 @@ class WKS_OT_shot_new(Operator):
             scene.frame_set(frame_new_shot)
 
             shot_ctrl_rig = get_shot_ctrl_rig(scene)
-            context.view_layer.objects.active = shot_ctrl_rig
-            bone = get_shot_ctrl_bone(shot_ctrl_rig, name_new_shot)
+            bone = get_shot_ctrl_bone(context, shot_ctrl_rig, name_new_shot)
 
             if marker_shot:
                 coll = get_shot_obj_collection(scene, marker_shot.name)

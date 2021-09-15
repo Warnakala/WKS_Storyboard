@@ -248,11 +248,11 @@ class WKS_OT_shot_offset(Operator):
     bl_description = "Jump to another shot relative to current one."
     bl_options = {"REGISTER"}
 
-    previous: bpy.props.BoolProperty(name="Previous Shot", description="Switch to previous shot.", default=False)
+    offset: bpy.props.IntProperty(name="Jump Offset", description="Offset relative to current shot.", default=1)
 
     def execute(self, context):
         scene = context.scene
-        marker_other_shot = get_shot(scene, offset=-1 if self.previous else 1)
+        marker_other_shot = get_shot(scene, offset=self.offset)
         if marker_other_shot is None:
             self.report({"INFO"}, "No other shot to jump to.")
         else:
@@ -352,9 +352,9 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
 
         pie = layout.menu_pie()
         op = pie.operator("wks_shot.shot_offset", text="Prev. Shot")
-        op.previous = True
+        op.offset = -1
         op = pie.operator("wks_shot.shot_offset", text="Next Shot")
-        op.previous = False
+        op.offset = 1
         op = pie.separator()
         op = pie.separator()
         op = pie.separator()
@@ -388,9 +388,9 @@ def header_panel(self, context: bpy.types.Context):
     layout.separator(factor=0.25)
     layout.popover(VIEW3D_MT_wks_shot.bl_idname, text='Shots', )
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_LEFT")
-    op.previous = True
+    op.offset = -1
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_RIGHT")
-    op.previous = False
+    op.offset = 1
     layout.operator("wks_shot.new", text="", icon="ADD")
     layout.separator(factor=0.25)
 

@@ -512,10 +512,10 @@ def reload_embedded_script():
 
 
 def register_wks_keymap():
-    file_path = os.path.dirname(os.path.abspath(__file__))
-    sys.path.append(file_path)
-    from .app_lib.Blender2DKeymap import KeyMap
-    sys.path.remove(file_path)
+    apptemplate_path = get_apptemplate_path()
+    sys.path.append(apptemplate_path)
+    from app_lib.Blender2DKeymap import KeyMap
+    sys.path.remove(apptemplate_path)
 
     wm = bpy.context.window_manager
     kc_active = wm.keyconfigs.active  # modify preset

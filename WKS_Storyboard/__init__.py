@@ -410,8 +410,8 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         op = pie.operator("wks_shot.new")
 
 
-class VIEW3D_MT_wks_shot(bpy.types.Panel):
-    bl_idname = 'VIEW3D_MT_wks_shot'
+class VIEW3D_PT_wks_shot(bpy.types.Panel):
+    bl_idname = 'VIEW3D_PT_wks_shot'
     bl_label = 'WKS Shot'
     bl_category = ''
     bl_space_type = 'VIEW_3D'
@@ -427,14 +427,14 @@ classes = [
     WKS_OT_shot_new,
     WKS_OT_shot_reparent_objects,
     VIEW3D_MT_PIE_wks_storyboard,
-    VIEW3D_MT_wks_shot,
+    VIEW3D_PT_wks_shot,
 ]
 
 
 def header_panel(self, context: bpy.types.Context):
     layout: bpy.types.UILayout = self.layout
     layout.separator(factor=0.25)
-    layout.popover(VIEW3D_MT_wks_shot.bl_idname, text='Shots', )
+    layout.popover(VIEW3D_PT_wks_shot.bl_idname, text='Shots', )
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_LEFT")
     op.offset = -1
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_RIGHT")

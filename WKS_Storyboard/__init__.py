@@ -25,7 +25,7 @@ import os
 import sys
 
 import bpy
-from bl_keymap_utils.io import keyconfig_import_from_data
+from bl_keymap_utils.io import keyconfig_init_from_data
 from bpy.app.handlers import persistent
 from bpy.types import Menu, Operator
 from mathutils import Euler, Vector
@@ -443,6 +443,23 @@ def header_panel(self, context: bpy.types.Context):
     layout.separator(factor=0.25)
 
 
+def register_wks_keymap():
+    file_path = os.path.dirname(os.path.abspath(__file__))
+    sys.path.append(file_path)
+    from .app_lib.Blender2DKeymap import KeyMap
+    sys.path.remove(file_path)
+
+    wm = bpy.context.window_manager
+    kc_active = wm.keyconfigs.active  # modify preset
+    keyconfig_init_from_data(kc_active, KeyMap.keyconfig_data)
+    kc_addon = wm.keyconfigs.addon  # insert keymap item to addon
+    if kc_addon:
+        km = kc_addon.keymaps.new(name="3D View", space_type="VIEW_3D")
+        kmi = km.keymap_items.new("wm.call_menu_pie", type="E", value="PRESS")
+        kmi.properties.name = VIEW3D_MT_PIE_wks_storyboard.bl_idname
+        kmi.active = True
+
+
 def register():
     logger.debug("Registering module")
     bpy.app.handlers.load_factory_startup_post.append(load_handler)
@@ -450,20 +467,8 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    file_path = os.path.dirname(os.path.abspath(__file__))
-    file_name = os.path.splitext(os.path.basename(__file__))[0]
-    sys.path.append(file_path)
-    from .app_lib.Blender2DKeymap import KeyMap
-    keyconfig_import_from_data(file_name, KeyMap.keyconfig_data)
-    sys.path.remove(file_path)
+    register_wks_keymap()
 
-    wm = bpy.context.window_manager
-    kc = wm.keyconfigs.addon
-    if kc:
-        km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
-        kmi = km.keymap_items.new("wm.call_menu_pie", type="E", value="PRESS")
-        kmi.properties.name = VIEW3D_MT_PIE_wks_storyboard.bl_idname
-        kmi.active = True
 
 def unregister():
     logger.debug("Unregistering module")

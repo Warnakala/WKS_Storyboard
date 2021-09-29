@@ -19,6 +19,7 @@
 # Initialization script for WKS Storyboard template
 
 import importlib
+import inspect
 import itertools
 import logging
 import math
@@ -530,22 +531,30 @@ def register_wks_keymap():
 
 def register():
     logger.debug("Registering module")
-    bpy.app.handlers.load_factory_startup_post.append(load_factory_startup_handler)
-    bpy.app.handlers.load_post.append(load_post_handler)
-    bpy.types.VIEW3D_MT_editor_menus.append(header_panel)
-    for cls in classes:
-        bpy.utils.register_class(cls)
+    if load_post_handler not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_factory_startup_post.append(load_factory_startup_handler)
+        bpy.app.handlers.load_post.append(load_post_handler)
+    class_name_list = [name for name, _ in inspect.getmembers(bpy.types) if name.find("_wks_") != -1]
+    if VIEW3D_PT_wks_shot.bl_idname not in class_name_list:
+        bpy.types.VIEW3D_MT_editor_menus.prepend(header_panel)
+        bpy.types.DOPESHEET_MT_editor_menus.prepend(header_panel)
+        for cls in classes:
+            bpy.utils.register_class(cls)
 
     register_wks_keymap()
 
 
 def unregister():
     logger.debug("Unregistering module")
-    bpy.app.handlers.load_factory_startup_post.remove(load_factory_startup_handler)
-    bpy.app.handlers.load_post.remove(load_post_handler)
-    bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
+    if load_post_handler in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_factory_startup_post.remove(load_factory_startup_handler)
+        bpy.app.handlers.load_post.remove(load_post_handler)
+    class_name_list = [name for name, _ in inspect.getmembers(bpy.types) if name.find("_wks_") != -1]
+    if VIEW3D_PT_wks_shot.bl_idname in class_name_list:
+        bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
+        bpy.types.DOPESHEET_MT_editor_menus.remove(header_panel)
+        for cls in classes:
+            bpy.utils.unregister_class(cls)
 
 
 if __name__ == "__main__":

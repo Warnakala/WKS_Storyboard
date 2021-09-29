@@ -18,11 +18,14 @@
 
 # Initialization script for WKS Storyboard template
 
+import importlib
 import itertools
 import logging
 import math
 import os
+import pkgutil
 import sys
+from importlib.machinery import ModuleSpec
 
 import bpy
 from bl_keymap_utils.io import keyconfig_init_from_data
@@ -30,13 +33,16 @@ from bpy.app.handlers import persistent
 from bpy.types import Menu, Operator
 from mathutils import Euler, Vector
 
+APPTEMPLATE_DIR = "bl_app_templates_user"
+APPTEMPLATE_NAME = "WKS_Storyboard"
+SCRIPT_INTERNAL_NAME = "wks_storyboard.py"
 SHOT_CTRL_NAME = "SHOT_CTRL"
 
 logger = logging.getLogger(__name__)
 
 
 @persistent
-def load_handler(dummy):
+def load_factory_startup_handler(dummy):
     import bpy
 
     # 2D Animation
@@ -76,6 +82,11 @@ def load_handler(dummy):
             if ob.type == 'GPENCIL':
                 gpd = ob.data
                 gpd.onion_keyframe_type = 'ALL'
+
+
+@persistent
+def load_post_handler(dummy):
+    reload_embedded_script()
 
 
 def get_shot_ctrl_collection(scene) -> bpy.types.Collection:
@@ -443,6 +454,63 @@ def header_panel(self, context: bpy.types.Context):
     layout.separator(factor=0.25)
 
 
+def get_apptemplate_path():
+    apptemplate_path = None
+    module_spec: importlib.machinery.ModuleSpec = importlib.util.find_spec(APPTEMPLATE_DIR)
+    if module_spec:
+        module_path_list = [p for p in module_spec.submodule_search_locations]
+        for pkg in pkgutil.iter_modules(module_path_list):
+            if pkg.name.startswith(APPTEMPLATE_NAME):
+                apptemplate_path = os.path.join(pkg.module_finder.path, pkg.name)
+
+    return apptemplate_path
+
+
+def get_apptemplate_script_path():
+    script_path = None
+    apptemplate_path = get_apptemplate_path()
+    if apptemplate_path is not None:
+        script_path = os.path.join(apptemplate_path, "__init__.py")
+
+    return script_path
+
+
+def reload_embedded_script():
+    area = bpy.context.screen.areas[-1]
+    prev_area_type = area.type
+    area.type = "TEXT_EDITOR"
+    text_editor = area.spaces.active
+
+    script_obj = bpy.data.texts.get(SCRIPT_INTERNAL_NAME)
+    script_path = None
+
+    # if there's no text block or real file is not found, find script path
+    if script_obj is None or not os.path.isfile(script_obj.filepath):
+        script_path = get_apptemplate_script_path()
+
+    # if text block exist but modified, reload
+    if script_obj is not None and script_obj.is_modified and script_path is None:
+        override_context = bpy.context.copy()
+        override_context["area"] = area
+        bpy.ops.text.reload(override_context, "EXEC_AREA")
+
+    # if script path is found
+    if script_path is not None and os.path.isfile(script_path):
+        # create or modify existing text block
+        if script_obj is None:
+            script_obj = bpy.data.texts.load(script_path, internal=False)
+            script_obj.use_fake_user = True
+            script_obj.use_module = True
+            script_obj.name = SCRIPT_INTERNAL_NAME
+        else:
+            script_obj.filepath = script_path
+
+    if script_obj is not None:
+        text_editor.text = script_obj
+
+    area.type = prev_area_type
+
+
 def register_wks_keymap():
     file_path = os.path.dirname(os.path.abspath(__file__))
     sys.path.append(file_path)
@@ -462,7 +530,8 @@ def register_wks_keymap():
 
 def register():
     logger.debug("Registering module")
-    bpy.app.handlers.load_factory_startup_post.append(load_handler)
+    bpy.app.handlers.load_factory_startup_post.append(load_factory_startup_handler)
+    bpy.app.handlers.load_post.append(load_post_handler)
     bpy.types.VIEW3D_MT_editor_menus.append(header_panel)
     for cls in classes:
         bpy.utils.register_class(cls)
@@ -472,7 +541,12 @@ def register():
 
 def unregister():
     logger.debug("Unregistering module")
-    bpy.app.handlers.load_factory_startup_post.remove(load_handler)
+    bpy.app.handlers.load_factory_startup_post.remove(load_factory_startup_handler)
+    bpy.app.handlers.load_post.remove(load_post_handler)
     bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
     for cls in classes:
         bpy.utils.unregister_class(cls)
+
+
+if __name__ == "__main__":
+    register()

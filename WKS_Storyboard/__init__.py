@@ -38,6 +38,7 @@ APPTEMPLATE_DIR = "bl_app_templates_user"
 APPTEMPLATE_NAME = "WKS_Storyboard"
 SCRIPT_INTERNAL_NAME = "wks_storyboard.py"
 SHOT_CTRL_NAME = "SHOT_CTRL"
+SHOT_MARKER_NAME_PREFIX = "SHOT_"
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +226,8 @@ def get_shot(scene, frame=None, offset=0) -> bpy.types.TimelineMarker:
     sort_key = (lambda m: m.frame)
     group_key = (lambda m: m.frame <= frame_ref)
     before, after = [], []
-    for v, i in itertools.groupby(sorted(scene.timeline_markers, key=sort_key), key=group_key):
+    marker_list = filter((lambda m: m.name.startswith(SHOT_MARKER_NAME_PREFIX)), scene.timeline_markers)
+    for v, i in itertools.groupby(sorted(marker_list, key=sort_key), key=group_key):
         if v:
             before.extend(i)
         else:
@@ -286,7 +288,7 @@ def activate_shot_objects(context, shot_name):
 
 def create_shot_name(scene):
     shot_number = len(scene.timeline_markers) + 1
-    return "SHOT_{:03}".format(shot_number)
+    return "{}{:03}".format(SHOT_MARKER_NAME_PREFIX, shot_number)
 
 
 def set_active_stroke_obj(context, stroke_obj):
@@ -326,7 +328,7 @@ def filter_shot_marker_list(self, context):
 
     # Filter by marker name.
     for idx, marker in enumerate(marker_list):
-        if marker.name.startswith("SHOT_"):
+        if marker.name.startswith(SHOT_MARKER_NAME_PREFIX):
             flt_flags[idx] |= self.SHOT_FILTER
         else:
             flt_flags[idx] &= ~self.bitflag_filter_item

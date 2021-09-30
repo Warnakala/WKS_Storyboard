@@ -538,6 +538,7 @@ def register():
     if VIEW3D_PT_wks_shot.bl_idname not in class_name_list:
         bpy.types.VIEW3D_MT_editor_menus.prepend(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.prepend(header_panel)
+        bpy.types.SEQUENCER_MT_editor_menus.prepend(header_panel)
         for cls in classes:
             bpy.utils.register_class(cls)
 
@@ -553,6 +554,7 @@ def unregister():
     if VIEW3D_PT_wks_shot.bl_idname in class_name_list:
         bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.remove(header_panel)
+        bpy.types.SEQUENCER_MT_editor_menus.remove(header_panel)
         for cls in classes:
             bpy.utils.unregister_class(cls)
 

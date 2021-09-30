@@ -31,7 +31,7 @@ from importlib.machinery import ModuleSpec
 import bpy
 from bl_keymap_utils.io import keyconfig_init_from_data
 from bpy.app.handlers import persistent
-from bpy.types import Menu, Operator
+from bpy.types import Menu, Operator, Panel, UIList
 from mathutils import Euler, Vector
 
 APPTEMPLATE_DIR = "bl_app_templates_user"
@@ -313,6 +313,28 @@ def parent_to_shot_controller(context, shot_name, obj_list):
         obj.parent_bone = bone.name
 
 
+def filter_shot_marker_list(self, context):
+    flt_flags = []
+    flt_neworder = []
+
+    scene = context.scene
+    marker_list = scene.timeline_markers
+    helper_funcs = bpy.types.UI_UL_list
+
+    # Create bitmask for all objects
+    flt_flags = [self.bitflag_filter_item] * len(marker_list)
+
+    # Filter by marker name.
+    for idx, marker in enumerate(marker_list):
+        if marker.name.startswith("SHOT_"):
+            flt_flags[idx] |= self.SHOT_FILTER
+        else:
+            flt_flags[idx] &= ~self.bitflag_filter_item
+
+    flt_neworder = helper_funcs.sort_items_by_name(marker_list, "name")
+    return flt_flags, flt_neworder
+
+
 class WKS_OT_shot_offset(Operator):
     bl_idname = "wks_shot.shot_offset"
     bl_label = "Shot Offset"
@@ -398,6 +420,23 @@ class WKS_OT_shot_reparent_objects(Operator):
         return {"FINISHED"}
 
 
+class WKS_UL_shot_markers(UIList):
+    bl_idname = "WKS_UL_shot_markers"
+
+    SHOT_FILTER = 1 << 0
+
+    def filter_items(self, context, data, propname: str):
+        flt_flags, flt_neworder = filter_shot_marker_list(self, context)
+        return flt_flags, flt_neworder
+
+    def draw_item(self, context, layout, data, item, icon: int, active_data, active_propname: str, index: int = 0,
+                  flt_flag: int = 0):
+        # scene: bpy.types.Scene = data
+        marker: bpy.types.TimelineMarker = item
+        if self.layout_type in {"DEFAULT", "COMPACT"}:
+            layout.prop(marker, "name")
+
+
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
 class VIEW3D_MT_PIE_wks_storyboard(Menu):
     bl_idname = "VIEW3D_MT_PIE_wks_storyboard"
@@ -422,7 +461,7 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         op = pie.operator("wks_shot.new")
 
 
-class VIEW3D_PT_wks_shot(bpy.types.Panel):
+class VIEW3D_PT_wks_shot(Panel):
     bl_idname = 'VIEW3D_PT_wks_shot'
     bl_label = 'WKS Shot'
     bl_category = ''
@@ -431,15 +470,35 @@ class VIEW3D_PT_wks_shot(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="PLACEHOLDER")
+        scene = context.scene
+        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index")
+
+
+class VIEW3D_PT_UI_wks_storyboard(Panel):
+    bl_idname = "VIEW3D_PT_UI_wks_storyboard"
+    bl_label = "Storyboard"
+    bl_category = "WKS"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        row = layout.row(align=True)
+        row.label(text="Shots:")
+        draw_navbar(row)
+        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index")
 
 
 classes = [
     WKS_OT_shot_offset,
     WKS_OT_shot_new,
     WKS_OT_shot_reparent_objects,
+    WKS_UL_shot_markers,
     VIEW3D_MT_PIE_wks_storyboard,
     VIEW3D_PT_wks_shot,
+    VIEW3D_PT_UI_wks_storyboard,
 ]
 
 
@@ -447,12 +506,16 @@ def header_panel(self, context: bpy.types.Context):
     layout: bpy.types.UILayout = self.layout
     layout.separator(factor=0.25)
     layout.popover(VIEW3D_PT_wks_shot.bl_idname, text='Shots', )
+    draw_navbar(layout)
+    layout.separator(factor=0.25)
+
+
+def draw_navbar(layout):
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_LEFT")
     op.offset = -1
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_RIGHT")
     op.offset = 1
     layout.operator("wks_shot.new", text="", icon="ADD")
-    layout.separator(factor=0.25)
 
 
 def get_apptemplate_path():
@@ -536,6 +599,9 @@ def register():
         bpy.app.handlers.load_post.append(load_post_handler)
     class_name_list = [name for name, _ in inspect.getmembers(bpy.types) if name.find("_wks_") != -1]
     if VIEW3D_PT_wks_shot.bl_idname not in class_name_list:
+        bpy.types.Scene.wks_shot_index = bpy.props.IntProperty(
+            name="Shot Index", description="Index into marker-based shot list used in WKS_Storyboard app template",
+            default=0, min=0, options={"HIDDEN", "SKIP_SAVE"})
         bpy.types.VIEW3D_MT_editor_menus.prepend(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.prepend(header_panel)
         bpy.types.SEQUENCER_MT_editor_menus.prepend(header_panel)
@@ -552,6 +618,7 @@ def unregister():
         bpy.app.handlers.load_post.remove(load_post_handler)
     class_name_list = [name for name, _ in inspect.getmembers(bpy.types) if name.find("_wks_") != -1]
     if VIEW3D_PT_wks_shot.bl_idname in class_name_list:
+        del bpy.types.Scene.wks_shot_index
         bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.remove(header_panel)
         bpy.types.SEQUENCER_MT_editor_menus.remove(header_panel)

@@ -316,9 +316,6 @@ def parent_to_shot_controller(context, shot_name, obj_list):
 
 
 def filter_shot_marker_list(self, context):
-    flt_flags = []
-    flt_neworder = []
-
     scene = context.scene
     marker_list = scene.timeline_markers
     helper_funcs = bpy.types.UI_UL_list
@@ -350,6 +347,26 @@ class WKS_OT_shot_offset(Operator):
         shot_name = get_shot(scene, offset=self.offset)
         if shot_name is None:
             self.report({"INFO"}, "No other shot to jump to.")
+        else:
+            set_active_shot(context, shot_name)
+            activate_shot_objects(context, shot_name.name)
+
+        return {"FINISHED"}
+
+
+class WKS_OT_shot_goto(Operator):
+    bl_idname = "wks_shot.shot_goto"
+    bl_label = "Go to Shot"
+    bl_description = "Jump to another shot at specified frame."
+    bl_options = {"REGISTER"}
+
+    target_frame: bpy.props.IntProperty(name="Target Frame", description="Frame contained by target shot.", default=0)
+
+    def execute(self, context):
+        scene = context.scene
+        shot_name = get_shot(scene, frame=self.target_frame)
+        if shot_name is None:
+            self.report({"INFO"}, "No shot containing specified frame.")
         else:
             set_active_shot(context, shot_name)
             activate_shot_objects(context, shot_name.name)
@@ -433,10 +450,17 @@ class WKS_UL_shot_markers(UIList):
 
     def draw_item(self, context, layout, data, item, icon: int, active_data, active_propname: str, index: int = 0,
                   flt_flag: int = 0):
-        # scene: bpy.types.Scene = data
+        scene: bpy.types.Scene = data
         marker: bpy.types.TimelineMarker = item
         if self.layout_type in {"DEFAULT", "COMPACT"}:
-            layout.prop(marker, "name")
+            if scene.frame_current == marker.frame:
+                icon = 'RADIOBUT_ON'
+            else:
+                icon = 'RADIOBUT_OFF'
+            op = layout.operator('wks_shot.shot_goto', text='', icon=icon, emboss=False)
+            op.target_frame = marker.frame
+
+            layout.prop(marker, "name", text="")
 
 
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
@@ -468,6 +492,7 @@ class VIEW3D_PT_wks_shot(Panel):
     bl_label = 'WKS Shot'
     bl_category = ''
     bl_space_type = 'VIEW_3D'
+    bl_ui_units_x = 20
     bl_region_type = 'HEADER'
 
     def draw(self, context):
@@ -495,6 +520,7 @@ class VIEW3D_PT_UI_wks_storyboard(Panel):
 
 classes = [
     WKS_OT_shot_offset,
+    WKS_OT_shot_goto,
     WKS_OT_shot_new,
     WKS_OT_shot_reparent_objects,
     WKS_UL_shot_markers,

@@ -350,8 +350,8 @@ def get_shot_base_name(shot_name: str):
 def set_active_stroke_obj(context, stroke_obj):
     if context.active_object is not None:
         bpy.ops.object.mode_set(mode="OBJECT")
-    context.view_layer.objects.active = stroke_obj
     stroke_obj.select_set(True)
+    context.view_layer.objects.active = stroke_obj
 
 
 def parent_to_shot_controller(context, shot_name, obj_list):

@@ -286,9 +286,25 @@ def activate_shot_objects(context, shot_name):
     scene.camera = camera_obj
 
 
-def create_shot_name(scene):
-    shot_number = len(scene.timeline_markers) + 1
-    return "{}{:03}".format(SHOT_MARKER_NAME_PREFIX, shot_number)
+def create_shot_name(scene, base_name=None):
+    """
+    Create first non-conflicting shot name from BASE_NAME.
+
+    :param scene:
+    :param base_name:
+    :return:
+    """
+    if base_name is None:
+        shot_number = len(scene.timeline_markers) + 1
+        base_name = "{:03}".format(shot_number)
+
+    shot_name = SHOT_MARKER_NAME_PREFIX + base_name
+    index = 1
+    while scene.timeline_markers.get(shot_name, None) is not None:
+        shot_name = SHOT_MARKER_NAME_PREFIX + base_name + "-{:02}".format(index)
+        index += 1
+
+    return shot_name
 
 
 def set_active_stroke_obj(context, stroke_obj):

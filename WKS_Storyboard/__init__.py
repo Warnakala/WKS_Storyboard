@@ -519,6 +519,7 @@ class WKS_UL_shot_markers(UIList):
             op.target_frame = marker.frame
 
             row.prop(marker, "wks_shot_name", text="")
+            row.prop(marker, "wks_shot_duration", text="")
         elif self.layout_type in {"GRID"}:
             layout.alignment = "CENTER"
             layout.label(text="", icon_value=icon)
@@ -683,6 +684,19 @@ def register_wks_keymap():
         kmi.active = True
 
 
+def prop_shot_duration_get(self):
+    scene = bpy.context.scene
+    shot_frame = self.frame
+    marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
+    frame_diff = (marker_next_shot.frame if marker_next_shot else scene.frame_end) - shot_frame
+
+    fps = scene.render.fps / scene.render.fps_base
+    d_minute, d_second = divmod(frame_diff, fps * 60)
+    d_second, d_frame = divmod(d_second, fps)
+    duration_str = "{:02}:{:02}+{:02}".format(int(d_minute), int(d_second), int(d_frame))
+    return duration_str
+
+
 def prop_shot_name_get(self):
     return self.name[len(SHOT_MARKER_NAME_PREFIX):]
 
@@ -703,6 +717,8 @@ def register():
             default=0, min=0, options={"HIDDEN", "SKIP_SAVE"})
         bpy.types.TimelineMarker.wks_shot_name = bpy.props.StringProperty(
             name="Shot Name", get=prop_shot_name_get, set=prop_shot_name_set, options={"SKIP_SAVE"})
+        bpy.types.TimelineMarker.wks_shot_duration = bpy.props.StringProperty(
+            name="Shot Duration", get=prop_shot_duration_get, options={"HIDDEN", "SKIP_SAVE"})
         bpy.types.VIEW3D_MT_editor_menus.prepend(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.prepend(header_panel)
         bpy.types.SEQUENCER_MT_editor_menus.prepend(header_panel)
@@ -721,6 +737,7 @@ def unregister():
     if VIEW3D_PT_wks_shot.bl_idname in class_name_list:
         del bpy.types.Scene.wks_shot_index
         del bpy.types.TimelineMarker.wks_shot_name
+        del bpy.types.TimelineMarker.wks_shot_duration
         bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.remove(header_panel)
         bpy.types.SEQUENCER_MT_editor_menus.remove(header_panel)

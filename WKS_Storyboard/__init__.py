@@ -25,6 +25,7 @@ import logging
 import math
 import os
 import pkgutil
+import re
 import sys
 from importlib.machinery import ModuleSpec
 
@@ -39,6 +40,8 @@ APPTEMPLATE_NAME = "WKS_Storyboard"
 SCRIPT_INTERNAL_NAME = "wks_storyboard.py"
 SHOT_CTRL_NAME = "SHOT_CTRL"
 SHOT_MARKER_NAME_PREFIX = "SHOT_"
+STROKE_NAME_PREFIX = "pen-"
+CAMERA_NAME_PREFIX = "cam-"
 
 logger = logging.getLogger(__name__)
 
@@ -125,12 +128,11 @@ def get_shot_ctrl_rig(scene) -> bpy.types.Armature:
     return shot_ctrl_rig
 
 
-def get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name) -> bpy.types.Bone:
+def get_shot_ctrl_bone(shot_ctrl_rig, shot_name) -> bpy.types.Bone:
     """
     Returns control bone for shot SHOT_NAME within SHOT_CTRL_RIG. If nonexistent, SHOT_CTRL_RIG will be activated and
     control bone created in Edit Mode.
 
-    :param context:
     :param shot_ctrl_rig:
     :param shot_name:
     :return:
@@ -138,6 +140,7 @@ def get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name) -> bpy.types.Bone:
     rig_data: bpy.types.Armature = shot_ctrl_rig.data
     bone = next((bone for bone in rig_data.bones if bone.name == shot_name), None)
     if bone is None:
+        context = bpy.context
         if context.active_object:
             bpy.ops.object.mode_set(mode="OBJECT")
         context.view_layer.objects.active = shot_ctrl_rig
@@ -307,6 +310,43 @@ def create_shot_name(scene, base_name=None):
     return shot_name
 
 
+def update_shot_name(marker, base_name):
+    if base_name.startswith(SHOT_MARKER_NAME_PREFIX):
+        base_name = base_name[len(SHOT_MARKER_NAME_PREFIX):]
+    shot_name_new = SHOT_MARKER_NAME_PREFIX + base_name
+    shot_name = marker.name
+    if shot_name_new == shot_name:
+        return
+
+    scene = bpy.context.scene
+    shot_marker_other = scene.timeline_markers.get(shot_name_new, None)
+    if shot_marker_other is not None:
+        base_name_other = get_shot_base_name(base_name)
+        shot_name_other = create_shot_name(scene, base_name_other)
+        update_shot_name(shot_marker_other, shot_name_other)
+
+    coll = get_shot_obj_collection(scene, shot_name)
+    coll.name = shot_name_new
+
+    shot_ctrl_rig = get_shot_ctrl_rig(scene)
+    bone = get_shot_ctrl_bone(shot_ctrl_rig, shot_name)
+    bone.name = shot_name_new
+
+    stroke_obj = get_stroke_obj(coll, shot_name)
+    stroke_obj.name = STROKE_NAME_PREFIX + shot_name_new
+    camera_obj = get_camera_obj(coll, shot_name)
+    camera_obj.name = CAMERA_NAME_PREFIX + shot_name_new
+
+    marker.name = shot_name_new
+
+
+def get_shot_base_name(shot_name: str):
+    base_name = shot_name[len(SHOT_MARKER_NAME_PREFIX):] if shot_name.startswith(SHOT_MARKER_NAME_PREFIX) \
+        else shot_name
+    mo = re.search(r"-\d+$", base_name)
+    return base_name[:mo.start()] if mo else base_name
+
+
 def set_active_stroke_obj(context, stroke_obj):
     if context.active_object is not None:
         bpy.ops.object.mode_set(mode="OBJECT")
@@ -324,7 +364,7 @@ def parent_to_shot_controller(context, shot_name, obj_list):
     """
     scene = context.scene
     shot_ctrl_rig = get_shot_ctrl_rig(scene)
-    bone = get_shot_ctrl_bone(context, shot_ctrl_rig, shot_name)
+    bone = get_shot_ctrl_bone(shot_ctrl_rig, shot_name)
     for obj in obj_list:
         obj.parent = shot_ctrl_rig
         obj.parent_type = "BONE"
@@ -468,15 +508,20 @@ class WKS_UL_shot_markers(UIList):
                   flt_flag: int = 0):
         scene: bpy.types.Scene = data
         marker: bpy.types.TimelineMarker = item
+        if scene.frame_current == marker.frame:
+            icon = 'RADIOBUT_ON'
+        else:
+            icon = 'RADIOBUT_OFF'
+
         if self.layout_type in {"DEFAULT", "COMPACT"}:
-            if scene.frame_current == marker.frame:
-                icon = 'RADIOBUT_ON'
-            else:
-                icon = 'RADIOBUT_OFF'
-            op = layout.operator('wks_shot.shot_goto', text='', icon=icon, emboss=False)
+            row = layout.row(align=True)
+            op = row.operator('wks_shot.shot_goto', text='', icon=icon, emboss=False)
             op.target_frame = marker.frame
 
-            layout.prop(marker, "name", text="")
+            row.prop(marker, "wks_shot_name", text="")
+        elif self.layout_type in {"GRID"}:
+            layout.alignment = "CENTER"
+            layout.label(text="", icon_value=icon)
 
 
 # spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
@@ -636,6 +681,14 @@ def register_wks_keymap():
         kmi.active = True
 
 
+def prop_shot_name_get(self):
+    return self.name[len(SHOT_MARKER_NAME_PREFIX):]
+
+
+def prop_shot_name_set(self, value):
+    update_shot_name(self, value)
+
+
 def register():
     logger.debug("Registering module")
     if load_post_handler not in bpy.app.handlers.load_post:
@@ -646,6 +699,8 @@ def register():
         bpy.types.Scene.wks_shot_index = bpy.props.IntProperty(
             name="Shot Index", description="Index into marker-based shot list used in WKS_Storyboard app template",
             default=0, min=0, options={"HIDDEN", "SKIP_SAVE"})
+        bpy.types.TimelineMarker.wks_shot_name = bpy.props.StringProperty(
+            name="Shot Name", get=prop_shot_name_get, set=prop_shot_name_set, options={"SKIP_SAVE"})
         bpy.types.VIEW3D_MT_editor_menus.prepend(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.prepend(header_panel)
         bpy.types.SEQUENCER_MT_editor_menus.prepend(header_panel)
@@ -663,6 +718,7 @@ def unregister():
     class_name_list = [name for name, _ in inspect.getmembers(bpy.types) if name.find("_wks_") != -1]
     if VIEW3D_PT_wks_shot.bl_idname in class_name_list:
         del bpy.types.Scene.wks_shot_index
+        del bpy.types.TimelineMarker.wks_shot_name
         bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.remove(header_panel)
         bpy.types.SEQUENCER_MT_editor_menus.remove(header_panel)

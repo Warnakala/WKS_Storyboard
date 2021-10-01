@@ -559,7 +559,8 @@ class VIEW3D_PT_wks_shot(Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index")
+        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index",
+                             rows=10)
 
 
 class VIEW3D_PT_UI_wks_storyboard(Panel):
@@ -576,7 +577,8 @@ class VIEW3D_PT_UI_wks_storyboard(Panel):
         row = layout.row(align=True)
         row.label(text="Shots:")
         draw_navbar(row)
-        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index")
+        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index",
+                             rows=10)
 
 
 classes = [

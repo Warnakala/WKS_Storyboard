@@ -554,7 +554,7 @@ class VIEW3D_PT_wks_shot(Panel):
     bl_label = 'WKS Shot'
     bl_category = ''
     bl_space_type = 'VIEW_3D'
-    bl_ui_units_x = 20
+    bl_ui_units_x = 10
     bl_region_type = 'HEADER'
 
     def draw(self, context):

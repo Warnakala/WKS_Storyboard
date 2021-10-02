@@ -214,6 +214,20 @@ def get_camera_obj(coll, shot_name) -> bpy.types.Object:
     return camera_obj
 
 
+def get_shot_duration(scene, marker):
+    shot_frame = marker.frame
+    marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
+    frame_diff = (marker_next_shot.frame if marker_next_shot else scene.frame_end) - shot_frame
+    return frame_diff
+
+
+def get_shot_marker_iterator(scene):
+    sort_key = (lambda m: m.frame)
+    marker_list = filter((lambda m: m.name.startswith(SHOT_MARKER_NAME_PREFIX)), scene.timeline_markers)
+    marker_iterator = sorted(marker_list, key=sort_key)
+    return marker_iterator
+
+
 def get_shot(scene, frame=None, offset=0) -> bpy.types.TimelineMarker:
     """
     Returns marker object for current shot, or None where 'current' is defined as shot with marker before and nearest
@@ -226,11 +240,10 @@ def get_shot(scene, frame=None, offset=0) -> bpy.types.TimelineMarker:
     :return:
     """
     frame_ref = frame or scene.frame_current
-    sort_key = (lambda m: m.frame)
-    group_key = (lambda m: m.frame <= frame_ref)
     before, after = [], []
-    marker_list = filter((lambda m: m.name.startswith(SHOT_MARKER_NAME_PREFIX)), scene.timeline_markers)
-    for v, i in itertools.groupby(sorted(marker_list, key=sort_key), key=group_key):
+    group_key = (lambda m: m.frame <= frame_ref)
+    marker_iterator = get_shot_marker_iterator(scene)
+    for v, i in itertools.groupby(marker_iterator, key=group_key):
         if v:
             before.extend(i)
         else:
@@ -686,9 +699,7 @@ def register_wks_keymap():
 
 def prop_shot_duration_get(self):
     scene = bpy.context.scene
-    shot_frame = self.frame
-    marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
-    frame_diff = (marker_next_shot.frame if marker_next_shot else scene.frame_end) - shot_frame
+    frame_diff = get_shot_duration(scene, self)
 
     fps = scene.render.fps / scene.render.fps_base
     d_minute, d_second = divmod(frame_diff, fps * 60)

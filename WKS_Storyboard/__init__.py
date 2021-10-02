@@ -42,6 +42,16 @@ SHOT_CTRL_NAME = "SHOT_CTRL"
 SHOT_MARKER_NAME_PREFIX = "SHOT_"
 STROKE_NAME_PREFIX = "pen-"
 CAMERA_NAME_PREFIX = "cam-"
+TIME_RE = re.compile(
+    r"""
+    (?:
+      (?P<min>\d+):
+    )?
+    (?P<sec>\d+)
+    (?:\+(?P<frame>\d+))?
+    """,
+    re.VERBOSE
+)
 
 logger = logging.getLogger(__name__)
 
@@ -708,6 +718,29 @@ def prop_shot_duration_get(self):
     return duration_str
 
 
+def prop_shot_duration_set(self, value):
+    mo = TIME_RE.match(value)
+    if mo is None:
+        return
+
+    min_str, sec_str, frame_str = mo.groups()
+    scene = bpy.context.scene
+    render_settings = scene.render
+    fps = render_settings.fps * render_settings.fps_base
+    duration_min = (int(min_str) * fps * 60) if min_str else 0
+    duration_sec = (int(sec_str) * fps) if sec_str else 0
+    duration = (int(frame_str) if frame_str else 0) + duration_sec + duration_min
+
+    prev_duration = get_shot_duration(scene, self)
+    delta_duration = duration - prev_duration
+
+    marker_iterator = get_shot_marker_iterator(scene)
+    shot_frame = self.frame
+    for marker in filter((lambda m: m.frame > shot_frame), marker_iterator):
+        marker.frame += delta_duration
+    scene.frame_end += delta_duration
+
+
 def prop_shot_name_get(self):
     return self.name[len(SHOT_MARKER_NAME_PREFIX):]
 
@@ -729,7 +762,7 @@ def register():
         bpy.types.TimelineMarker.wks_shot_name = bpy.props.StringProperty(
             name="Shot Name", get=prop_shot_name_get, set=prop_shot_name_set, options={"SKIP_SAVE"})
         bpy.types.TimelineMarker.wks_shot_duration = bpy.props.StringProperty(
-            name="Shot Duration", get=prop_shot_duration_get, options={"HIDDEN", "SKIP_SAVE"})
+            name="Shot Duration", get=prop_shot_duration_get, set=prop_shot_duration_set, options={"SKIP_SAVE"})
         bpy.types.VIEW3D_MT_editor_menus.prepend(header_panel)
         bpy.types.DOPESHEET_MT_editor_menus.prepend(header_panel)
         bpy.types.SEQUENCER_MT_editor_menus.prepend(header_panel)

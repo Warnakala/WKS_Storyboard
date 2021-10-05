@@ -514,9 +514,9 @@ class WKS_OT_shot_new(Operator):
 
 class WKS_OT_shot_reparent_objects(Operator):
     bl_idname = "wks_shot.reparent_objects"
-    bl_label = "Reparent Objects"
-    bl_description = "Reparent objects within a shot-specific Collection to the shot's controller. Necessary for" \
-                     " proper shot switching in playback."
+    bl_label = "Reparent Current Shot Objects"
+    bl_description = "Reparent objects within current shot's collection to its controller. Necessary for proper shot " \
+                     "switching in playback."
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -595,9 +595,7 @@ class VIEW3D_PT_wks_shot(Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
-        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index",
-                             rows=10)
+        draw_panel(context, layout)
 
 
 class VIEW3D_PT_UI_wks_storyboard(Panel):
@@ -609,13 +607,11 @@ class VIEW3D_PT_UI_wks_storyboard(Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
 
         row = layout.row(align=True)
         row.label(text="Shots:")
         draw_navbar(row)
-        layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index",
-                             rows=10)
+        draw_panel(context, layout)
 
 
 classes = [
@@ -644,6 +640,13 @@ def draw_navbar(layout):
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_RIGHT")
     op.offset = 1
     layout.operator("wks_shot.new", text="", icon="ADD")
+
+
+def draw_panel(context, layout):
+    scene = context.scene
+    layout.template_list(WKS_UL_shot_markers.bl_idname, "", scene, "timeline_markers", scene, "wks_shot_index",
+                         rows=10)
+    layout.operator("wks_shot.reparent_objects")
 
 
 def get_apptemplate_path():

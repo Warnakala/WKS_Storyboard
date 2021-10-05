@@ -453,6 +453,10 @@ class WKS_OT_shot_goto(Operator):
         return {"FINISHED"}
 
 
+def get_fps(scene):
+    return scene.render.fps / scene.render.fps_base
+
+
 class WKS_OT_shot_new(Operator):
     bl_idname = "wks_shot.new"
     bl_label = "New Shot"
@@ -482,17 +486,26 @@ class WKS_OT_shot_new(Operator):
             marker_new_shot.camera = camera_obj
             activate_shot_objects(context, name_new_shot)
 
+            fps_real = get_fps(scene)
+            frame_end_min = frame_new_shot + fps_real
+            if scene.frame_end < frame_end_min:
+                scene.frame_end = frame_end_min
+
         return {"FINISHED"}
 
     def get_frame_new_shot(self, scene: bpy.types.Scene, marker_shot: bpy.types.TimelineMarker) -> int:
         if marker_shot:
+            fps_real = get_fps(scene)
             frame_current_shot = marker_shot.frame
-            frame_new_shot = max(frame_current_shot + scene.render.fps, scene.frame_current)
-            marker_other_shot = get_shot(scene, frame=frame_new_shot + scene.render.fps - 1)
+            frame_new_shot = max(frame_current_shot + fps_real, scene.frame_current)
+            frame_end_min = frame_new_shot + fps_real
+            marker_other_shot = get_shot(scene, frame=frame_end_min - 1)
             if marker_other_shot != marker_shot:
                 self.report({"WARNING"}, "Not enough excess duration to create a new shot here. "
                                          "Any given shot must be at least one second long.")
                 frame_new_shot = None
+            elif scene.frame_end < frame_end_min:
+                scene.frame_end = frame_end_min
         else:
             frame_new_shot = scene.frame_start
 
@@ -711,7 +724,7 @@ def prop_shot_duration_get(self):
     scene = bpy.context.scene
     frame_diff = get_shot_duration(scene, self)
 
-    fps = scene.render.fps / scene.render.fps_base
+    fps = get_fps(scene)
     d_minute, d_second = divmod(frame_diff, fps * 60)
     d_second, d_frame = divmod(d_second, fps)
     duration_str = "{:02}:{:02}+{:02}".format(int(d_minute), int(d_second), int(d_frame))
@@ -725,8 +738,7 @@ def prop_shot_duration_set(self, value):
 
     min_str, sec_str, frame_str = mo.groups()
     scene = bpy.context.scene
-    render_settings = scene.render
-    fps = render_settings.fps * render_settings.fps_base
+    fps = get_fps(scene)
     duration_min = (int(min_str) * fps * 60) if min_str else 0
     duration_sec = (int(sec_str) * fps) if sec_str else 0
     duration = (int(frame_str) if frame_str else 0) + duration_sec + duration_min

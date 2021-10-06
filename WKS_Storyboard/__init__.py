@@ -754,6 +754,8 @@ def prop_shot_duration_set(self, value):
     for marker in filter((lambda m: m.frame > shot_frame), marker_iterator):
         marker.frame += delta_duration
     scene.frame_end += delta_duration
+    if scene.frame_current >= shot_frame + duration:
+        scene.frame_current += delta_duration
 
 
 def prop_shot_name_get(self):

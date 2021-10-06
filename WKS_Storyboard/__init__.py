@@ -824,12 +824,11 @@ def prop_shot_duration_set(self, value):
         marker.frame += delta_duration
     scene.frame_end += delta_duration
 
-    # move current frame only if placed after shot modified
-    if scene.frame_current >= shot_frame + prev_duration:
+    is_current_or_next_shot = shot_frame <= scene.frame_current
+    is_next_shot = shot_frame + prev_duration <= scene.frame_current
+    if is_next_shot:
         scene.frame_current += delta_duration
-
-    # adjust only when we're in current shot
-    if shot_frame <= scene.frame_current < shot_frame + prev_duration:
+    if is_current_or_next_shot:
         adjust_preview_range(scene)
 
     adjust_shot_transitions(scene, self)

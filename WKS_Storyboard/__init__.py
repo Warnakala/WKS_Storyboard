@@ -201,7 +201,7 @@ def get_layer_collection(view_layer, coll_name) -> bpy.types.LayerCollection:
 def get_stroke_obj(coll, shot_name) -> bpy.types.Object:
     stroke_obj = next((obj for obj in coll.objects if obj.type == "GPENCIL"), None)
     if stroke_obj is None:
-        stroke_name = "pen-" + shot_name
+        stroke_name = STROKE_NAME_PREFIX + shot_name
         stroke_data = bpy.data.grease_pencils.new(stroke_name)
         stroke_obj = bpy.data.objects.new(stroke_name, stroke_data)
         coll.objects.link(stroke_obj)
@@ -212,7 +212,7 @@ def get_stroke_obj(coll, shot_name) -> bpy.types.Object:
 def get_camera_obj(coll, shot_name) -> bpy.types.Object:
     camera_obj = next((obj for obj in coll.objects if obj.type == "CAMERA"), None)
     if camera_obj is None:
-        camera_name = "cam-" + shot_name
+        camera_name = CAMERA_NAME_PREFIX + shot_name
         camera_data = bpy.data.cameras.new(camera_name)
         camera_obj = bpy.data.objects.new(camera_name, camera_data)
         coll.objects.link(camera_obj)

@@ -53,6 +53,8 @@ TIME_RE = re.compile(
     re.VERBOSE
 )
 
+LOCATION_PATH_PATTERN = r'pose.bones["{}"].location'
+
 logger = logging.getLogger(__name__)
 
 
@@ -134,6 +136,16 @@ def get_shot_ctrl_rig(scene) -> bpy.types.Armature:
     if shot_ctrl_rig.name != rig_name:
         shot_ctrl_rig.name = rig_name
         shot_ctrl_rig.data.name = rig_name
+
+    if shot_ctrl_rig.animation_data is None:
+        shot_ctrl_rig.animation_data_create()
+
+    action = shot_ctrl_rig.animation_data.action
+    if action is None:
+        action = bpy.data.actions.new(rig_name)
+        action.use_fake_user = True
+        shot_ctrl_rig.animation_data.action = action
+    action.name = rig_name
 
     return shot_ctrl_rig
 
@@ -285,13 +297,6 @@ def set_active_shot(context, marker_shot, current=False):
     """
     other_shot_name = marker_shot.name
     scene = context.scene
-    if not current:
-        marker_current_shot = get_shot(scene)
-        if marker_current_shot is not None and marker_current_shot != marker_shot:
-            shot_name = marker_current_shot.name
-            l_coll = get_layer_collection(context.view_layer, shot_name)
-            if l_coll is not None:
-                l_coll.exclude = True
 
     scene.frame_set(marker_shot.frame)
 
@@ -394,6 +399,41 @@ def parent_to_shot_controller(context, shot_name, obj_list):
         obj.parent_bone = bone.name
 
 
+def adjust_shot_transitions(scene, first_shot_marker):
+    first_shot_frame = first_shot_marker.frame if first_shot_marker is not None else scene.frame_start
+
+    shot_ctrl_rig = get_shot_ctrl_rig(scene)
+    action = shot_ctrl_rig.animation_data.action
+
+    marker_iterator = get_shot_marker_iterator(scene)
+    for shot_marker in filter((lambda m: m.frame >= first_shot_frame), marker_iterator):
+        shot_name = shot_marker.name
+        shot_duration = get_shot_duration(scene, shot_marker)
+        action_group = action.groups.get(shot_name)
+        if action_group is None:
+            action.groups.new(shot_name)
+
+        bone = get_shot_ctrl_bone(shot_ctrl_rig, shot_name)
+        bone_loc_data_path = LOCATION_PATH_PATTERN.format(bone.name)
+        for axis_index in range(3):
+            fcurve_x = action.fcurves.find(bone_loc_data_path, index=axis_index)
+            if fcurve_x is None:
+                fcurve_x = action.fcurves.new(bone_loc_data_path, index=axis_index, action_group=shot_name)
+            keyframe_count = len(fcurve_x.keyframe_points)
+            if keyframe_count < 3:
+                fcurve_x.keyframe_points.add(3 - keyframe_count)
+                for point_index in range(3):
+                    fcurve_x.keyframe_points[point_index].interpolation = "CONSTANT"
+            for point_index, point in enumerate(fcurve_x.keyframe_points):
+                if point_index in (0, 2):
+                    # throw shot controller far off the camera before and after its duration
+                    point.co = (-1 if point_index == 0 else shot_marker.frame + shot_duration, 100000)
+                elif point_index == 1:
+                    point.co = (shot_marker.frame, 0)
+                else:
+                    fcurve_x.keyframe_points.remove(point, fast=True)
+
+
 def filter_shot_marker_list(self, context):
     scene = context.scene
     marker_list = scene.timeline_markers
@@ -490,6 +530,8 @@ class WKS_OT_shot_new(Operator):
             frame_end_min = frame_new_shot + fps_real
             if scene.frame_end < frame_end_min:
                 scene.frame_end = frame_end_min
+
+            adjust_shot_transitions(scene, marker_shot)
 
         return {"FINISHED"}
 
@@ -756,6 +798,8 @@ def prop_shot_duration_set(self, value):
     scene.frame_end += delta_duration
     if scene.frame_current >= shot_frame + duration:
         scene.frame_current += delta_duration
+
+    adjust_shot_transitions(scene, self)
 
 
 def prop_shot_name_get(self):

@@ -299,6 +299,7 @@ def set_active_shot(context, marker_shot, current=False):
     scene = context.scene
 
     scene.frame_set(marker_shot.frame)
+    adjust_preview_range(scene, marker_shot)
 
     coll = get_shot_obj_collection(scene, other_shot_name)
     l_coll = get_layer_collection(context.view_layer, coll.name)
@@ -432,6 +433,27 @@ def adjust_shot_transitions(scene, first_shot_marker):
                     point.co = (shot_marker.frame, 0)
                 else:
                     fcurve_x.keyframe_points.remove(point, fast=True)
+
+
+def adjust_preview_range(scene, marker_shot=None):
+    """
+    Adjust preview range as means of isolating individual shot. If MARKER_SHOT is None, defaults to current shot.
+
+    :param scene:
+    :param marker_shot:
+    """
+    # skip if not in preview (shot-isolation) mode, it will calc when activated
+    if not scene.use_preview_range:
+        return
+
+    if marker_shot is None:
+        marker_shot = get_shot(scene)
+    shot_frame = marker_shot.frame
+    marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
+    shot_frame_end = (marker_next_shot.frame if marker_next_shot else scene.frame_end)
+
+    scene.frame_preview_start = shot_frame
+    scene.frame_preview_end = shot_frame_end
 
 
 def filter_shot_marker_list(self, context):
@@ -677,6 +699,7 @@ def header_panel(self, context: bpy.types.Context):
 
 
 def draw_navbar(layout):
+    op = layout.prop(bpy.context.scene, "wks_shot_isolate", text="", icon="OUTLINER_OB_CAMERA")
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_LEFT")
     op.offset = -1
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_RIGHT")
@@ -790,14 +813,21 @@ def prop_shot_duration_set(self, value):
 
     prev_duration = get_shot_duration(scene, self)
     delta_duration = duration - prev_duration
-
-    marker_iterator = get_shot_marker_iterator(scene)
     shot_frame = self.frame
+
+    # move all shots behind shot modified
+    marker_iterator = get_shot_marker_iterator(scene)
     for marker in filter((lambda m: m.frame > shot_frame), marker_iterator):
         marker.frame += delta_duration
     scene.frame_end += delta_duration
-    if scene.frame_current >= shot_frame + duration:
+
+    # move current frame only if placed after shot modified
+    if scene.frame_current >= shot_frame + prev_duration:
         scene.frame_current += delta_duration
+
+    # adjust only when we're in current shot
+    if shot_frame <= scene.frame_current < shot_frame + prev_duration:
+        adjust_preview_range(scene)
 
     adjust_shot_transitions(scene, self)
 
@@ -810,6 +840,17 @@ def prop_shot_name_set(self, value):
     update_shot_name(self, value)
 
 
+def prop_shot_isolate_get(self):
+    return self.use_preview_range
+
+
+def prop_shot_isolate_set(self, value):
+    scene: bpy.types.Scene = self
+    self.use_preview_range = value
+    if value:
+        adjust_preview_range(scene)
+
+
 def register():
     logger.debug("Registering module")
     if load_post_handler not in bpy.app.handlers.load_post:
@@ -820,6 +861,9 @@ def register():
         bpy.types.Scene.wks_shot_index = bpy.props.IntProperty(
             name="Shot Index", description="Index into marker-based shot list used in WKS_Storyboard app template",
             default=0, min=0, options={"HIDDEN", "SKIP_SAVE"})
+        bpy.types.Scene.wks_shot_isolate = bpy.props.BoolProperty(
+            name="Shot Isolate", description="Use preview range to isolate playback to shot currently worked on",
+            get=prop_shot_isolate_get, set=prop_shot_isolate_set, options={"SKIP_SAVE"})
         bpy.types.TimelineMarker.wks_shot_name = bpy.props.StringProperty(
             name="Shot Name", get=prop_shot_name_get, set=prop_shot_name_set, options={"SKIP_SAVE"})
         bpy.types.TimelineMarker.wks_shot_duration = bpy.props.StringProperty(
@@ -841,6 +885,7 @@ def unregister():
     class_name_list = [name for name, _ in inspect.getmembers(bpy.types) if name.find("_wks_") != -1]
     if VIEW3D_PT_wks_shot.bl_idname in class_name_list:
         del bpy.types.Scene.wks_shot_index
+        del bpy.types.Scene.wks_shot_isolate
         del bpy.types.TimelineMarker.wks_shot_name
         del bpy.types.TimelineMarker.wks_shot_duration
         bpy.types.VIEW3D_MT_editor_menus.remove(header_panel)

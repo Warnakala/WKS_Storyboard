@@ -307,6 +307,9 @@ def set_active_shot(context, marker_shot, current=False):
         l_coll.exclude = False
         context.view_layer.active_layer_collection = l_coll
 
+    for obj in context.selected_objects:
+        obj.select_set(False)
+
 
 def activate_shot_objects(context, shot_name):
     scene = context.scene

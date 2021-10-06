@@ -457,7 +457,7 @@ class WKS_OT_shot_offset(Operator):
     bl_idname = "wks_shot.shot_offset"
     bl_label = "Shot Offset"
     bl_description = "Jump to another shot relative to current one."
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER", "UNDO"}
 
     offset: bpy.props.IntProperty(name="Jump Offset", description="Offset relative to current shot.", default=1)
 
@@ -477,7 +477,7 @@ class WKS_OT_shot_goto(Operator):
     bl_idname = "wks_shot.shot_goto"
     bl_label = "Go to Shot"
     bl_description = "Jump to another shot at specified frame."
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER", "UNDO"}
 
     target_frame: bpy.props.IntProperty(name="Target Frame", description="Frame contained by target shot.", default=0)
 

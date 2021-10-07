@@ -213,11 +213,21 @@ def get_layer_collection(view_layer, coll_name) -> bpy.types.LayerCollection:
 def get_stroke_obj(coll, shot_name) -> bpy.types.Object:
     stroke_obj = next((obj for obj in coll.objects if obj.type == "GPENCIL"), None)
     if stroke_obj is None:
-        stroke_name = STROKE_NAME_PREFIX + shot_name
-        stroke_data = bpy.data.grease_pencils.new(stroke_name)
-        stroke_obj = bpy.data.objects.new(stroke_name, stroke_data)
+        stroke_obj = create_stroke_obj(shot_name)
         coll.objects.link(stroke_obj)
 
+    return stroke_obj
+
+
+def create_stroke_obj(shot_name):
+    index = 1
+    stroke_name_base = STROKE_NAME_PREFIX + shot_name
+    stroke_name = stroke_name_base + "_{:03}".format(index)
+    while stroke_name in bpy.data.objects:
+        index += 1
+        stroke_name = stroke_name_base + "_{:03}".format(index)
+    stroke_data = bpy.data.grease_pencils.new(stroke_name)
+    stroke_obj = bpy.data.objects.new(stroke_name, stroke_data)
     return stroke_obj
 
 
@@ -598,6 +608,31 @@ class WKS_OT_shot_reparent_objects(Operator):
         return {"FINISHED"}
 
 
+class WKS_OT_shot_new_gp_object(Operator):
+    bl_idname = "wks_shot.new_gp_object"
+    bl_label = "New Grease Pencil Objects"
+    bl_description = "Create new grease pencil object in current shot and switch into Draw mode if possible"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        marker_iterator = filter((lambda m: m.name.startswith(SHOT_MARKER_NAME_PREFIX)), scene.timeline_markers)
+        return next(marker_iterator, None) is not None
+
+    def execute(self, context):
+        scene = context.scene
+        marker_shot = get_shot(scene)
+        shot_name = marker_shot.name
+        coll = get_shot_obj_collection(scene, shot_name)
+        stroke_obj = create_stroke_obj(shot_name)
+        coll.objects.link(stroke_obj)
+
+        parent_to_shot_controller(context, shot_name, [stroke_obj])
+
+        return {"FINISHED"}
+
+
 class WKS_UL_shot_markers(UIList):
     bl_idname = "WKS_UL_shot_markers"
 
@@ -686,6 +721,7 @@ classes = [
     WKS_OT_shot_goto,
     WKS_OT_shot_new,
     WKS_OT_shot_reparent_objects,
+    WKS_OT_shot_new_gp_object,
     WKS_UL_shot_markers,
     VIEW3D_MT_PIE_wks_storyboard,
     VIEW3D_PT_wks_shot,
@@ -708,6 +744,9 @@ def draw_navbar(layout):
     op = layout.operator("wks_shot.shot_offset", text="", icon="TRIA_RIGHT")
     op.offset = 1
     layout.operator("wks_shot.new", text="", icon="ADD")
+
+    layout.separator(factor=0.5)
+    layout.operator("wks_shot.new_gp_object", text="", icon="ADD")
 
 
 def draw_panel(context, layout):

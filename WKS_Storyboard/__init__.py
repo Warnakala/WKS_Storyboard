@@ -608,6 +608,56 @@ class WKS_OT_shot_reparent_objects(Operator):
         return {"FINISHED"}
 
 
+class WKS_OT_shot_cycle_gp_objects(Operator):
+    bl_idname = "wks_shot.cycle_gp_objects"
+    bl_label = "Cycle Grease Pencil Objects"
+    bl_description = "Cycle through current shot's grease pencil objects, and switch into Draw mode if possible"
+    bl_options = {"REGISTER", "UNDO"}
+
+    reverse: bpy.props.BoolProperty(name="Cycle Reversed", description="Get previous object instead of next one.",
+                                    default=False)
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        marker_iterator = filter((lambda m: m.name.startswith(SHOT_MARKER_NAME_PREFIX)), scene.timeline_markers)
+        return next(marker_iterator, None) is not None
+
+    def execute(self, context):
+        scene = context.scene
+        marker_shot = get_shot(scene)
+        coll = get_shot_obj_collection(scene, marker_shot.name)
+        prev_obj = context.object
+        obj = None
+
+        if not (prev_obj and prev_obj.name in coll.objects):
+            obj = next(coll.objects, None)
+        else:
+            found = False
+            object_iterator = filter((lambda o: o.type == "GPENCIL"),
+                                     reversed(coll.objects) if self.reverse else coll.objects)
+            for obj in itertools.cycle(object_iterator):
+                if obj == prev_obj and not found:
+                    bpy.ops.object.mode_set(mode="OBJECT")
+                    obj.select_set(True)
+                    prev_obj.select_set(False)
+                    found = True
+                elif found:
+                    break
+        if obj is not None:
+            context.view_layer.objects.active = obj
+            bpy.ops.object.mode_set(mode="PAINT_GPENCIL")
+        else:
+            return {"CANCELLED"}
+
+        return {"FINISHED"}
+
+    def invoke(self, context, event: bpy.types.Event):
+        self.reverse = event.shift is True
+
+        return self.execute(context)
+
+
 class WKS_OT_shot_new_gp_object(Operator):
     bl_idname = "wks_shot.new_gp_object"
     bl_label = "New Grease Pencil Objects"
@@ -677,10 +727,10 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         op.offset = -1
         op = pie.operator("wks_shot.shot_offset", text="Next Shot")
         op.offset = 1
-        op = pie.separator()
         column = pie.column()
         column.scale_y = 1.5
         column.operator("wks_shot.reparent_objects")
+        op = pie.operator("wks_shot.cycle_gp_objects")
         op = pie.separator()
         op = pie.separator()
         op = pie.separator()
@@ -721,6 +771,7 @@ classes = [
     WKS_OT_shot_goto,
     WKS_OT_shot_new,
     WKS_OT_shot_reparent_objects,
+    WKS_OT_shot_cycle_gp_objects,
     WKS_OT_shot_new_gp_object,
     WKS_UL_shot_markers,
     VIEW3D_MT_PIE_wks_storyboard,
@@ -746,6 +797,7 @@ def draw_navbar(layout):
     layout.operator("wks_shot.new", text="", icon="ADD")
 
     layout.separator(factor=0.5)
+    op = layout.operator("wks_shot.cycle_gp_objects", text="", icon="GREASEPENCIL")
     layout.operator("wks_shot.new_gp_object", text="", icon="ADD")
 
 

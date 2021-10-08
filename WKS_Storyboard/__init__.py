@@ -727,10 +727,10 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         op.offset = -1
         op = pie.operator("wks_shot.shot_offset", text="Next Shot")
         op.offset = 1
-        column = pie.column()
-        column.scale_y = 1.5
-        column.operator("wks_shot.reparent_objects")
         op = pie.operator("wks_shot.cycle_gp_objects")
+        top_box = pie.box()
+        top_box.scale_x = 0.75
+        draw_panel(context, top_box)
         op = pie.separator()
         op = pie.separator()
         op = pie.separator()

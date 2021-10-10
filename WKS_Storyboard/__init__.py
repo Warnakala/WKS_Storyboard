@@ -637,9 +637,7 @@ class WKS_OT_shot_cycle_gp_objects(Operator):
         prev_obj = context.object
         obj = None
 
-        if not (prev_obj and prev_obj.name in coll.objects):
-            obj = next(coll.objects, None)
-        else:
+        if prev_obj and prev_obj.name in coll.objects:
             found = False
             object_iterator = filter((lambda o: o.type == "GPENCIL"),
                                      reversed(coll.objects) if self.reverse else coll.objects)

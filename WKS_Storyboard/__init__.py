@@ -483,13 +483,15 @@ def filter_shot_marker_list(self, context):
     flt_flags = [self.bitflag_filter_item] * len(marker_list)
 
     # Filter by marker name.
+    sort_data = []
     for idx, marker in enumerate(marker_list):
         if marker.name.startswith(SHOT_MARKER_NAME_PREFIX):
             flt_flags[idx] |= self.SHOT_FILTER
+            sort_data.append((idx, marker.frame))
         else:
             flt_flags[idx] &= ~self.bitflag_filter_item
 
-    flt_neworder = helper_funcs.sort_items_by_name(marker_list, "name")
+    flt_neworder = helper_funcs.sort_items_helper(sort_data, (lambda t: t[1]))
     return flt_flags, flt_neworder
 
 

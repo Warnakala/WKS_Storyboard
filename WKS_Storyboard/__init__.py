@@ -690,6 +690,19 @@ class WKS_OT_shot_new_gp_object(Operator):
         return {"FINISHED"}
 
 
+class WKS_OT_shot_toggle_isolate(Operator):
+    bl_idname = "wks_shot.toggle_isolate"
+    bl_label = "Toggle Shot Isolate"
+    bl_description = "Toggle shot isolate"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        scene = context.scene
+        scene.wks_shot_isolate = not scene.wks_shot_isolate
+
+        return {"FINISHED"}
+
+
 class WKS_UL_shot_markers(UIList):
     bl_idname = "WKS_UL_shot_markers"
 
@@ -738,7 +751,7 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         top_box = pie.box()
         top_box.scale_x = 0.75
         draw_panel(context, top_box)
-        op = pie.separator()
+        op = pie.operator("wks_shot.toggle_isolate")
         op = pie.operator("wks_shot.new_gp_object")
         op = pie.separator()
         op = pie.operator("wks_shot.new")
@@ -780,6 +793,7 @@ classes = [
     WKS_OT_shot_reparent_objects,
     WKS_OT_shot_cycle_gp_objects,
     WKS_OT_shot_new_gp_object,
+    WKS_OT_shot_toggle_isolate,
     WKS_UL_shot_markers,
     VIEW3D_MT_PIE_wks_storyboard,
     VIEW3D_PT_wks_shot,

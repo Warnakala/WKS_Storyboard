@@ -739,7 +739,7 @@ class VIEW3D_MT_PIE_wks_storyboard(Menu):
         top_box.scale_x = 0.75
         draw_panel(context, top_box)
         op = pie.separator()
-        op = pie.separator()
+        op = pie.operator("wks_shot.new_gp_object")
         op = pie.separator()
         op = pie.operator("wks_shot.new")
 

@@ -420,7 +420,7 @@ def parent_to_shot_controller(context, shot_name, obj_list):
 def adjust_shot_transitions(scene, first_shot_marker):
     def get_loc_keyframe_list(sf, sfe):
         move_unit = 100000
-        return [(-1, move_unit), (sf, 0), (sfe, move_unit)]
+        return [(-1, move_unit), (sf, 0), (sfe, 0 if sfe == scene.frame_end else move_unit)]
 
     target_keyframe_count = 3
     first_shot_frame = first_shot_marker.frame if first_shot_marker is not None else scene.frame_start

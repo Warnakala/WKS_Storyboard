@@ -652,6 +652,8 @@ class WKS_OT_shot_cycle_gp_objects(Operator):
         if obj is not None:
             context.view_layer.objects.active = obj
             bpy.ops.object.mode_set(mode="PAINT_GPENCIL")
+            obj.select_set(True)
+            scene.wks_shot_isolate = True
         else:
             return {"CANCELLED"}
 

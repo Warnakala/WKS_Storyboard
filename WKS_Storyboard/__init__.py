@@ -470,7 +470,7 @@ def adjust_preview_range(scene, marker_shot=None):
 
     if marker_shot is None:
         marker_shot = get_shot(scene)
-    shot_frame = marker_shot.frame
+    shot_frame = marker_shot.frame if marker_shot else scene.frame_start
     marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
     shot_frame_end = (marker_next_shot.frame if marker_next_shot else scene.frame_end)
 

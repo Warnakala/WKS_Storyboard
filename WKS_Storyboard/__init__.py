@@ -246,6 +246,10 @@ def get_camera_obj(coll, shot_name) -> bpy.types.Object:
     return camera_obj
 
 
+def get_fps(scene):
+    return scene.render.fps / scene.render.fps_base
+
+
 def get_shot_duration(scene, marker):
     shot_frame = marker.frame
     marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
@@ -535,10 +539,6 @@ class WKS_OT_shot_goto(Operator):
         return {"FINISHED"}
 
 
-def get_fps(scene):
-    return scene.render.fps / scene.render.fps_base
-
-
 class WKS_OT_shot_new(Operator):
     bl_idname = "wks_shot.new"
     bl_label = "New Shot"
@@ -617,7 +617,7 @@ class WKS_OT_shot_reparent_objects(Operator):
 
 class WKS_OT_shot_cycle_gp_objects(Operator):
     bl_idname = "wks_shot.cycle_gp_objects"
-    bl_label = "Cycle Grease Pencil Objects"
+    bl_label = "Cycle Grease Pencils"
     bl_description = "Cycle through current shot's grease pencil objects, and switch into Draw mode if possible"
     bl_options = {"REGISTER", "UNDO"}
 
@@ -667,7 +667,7 @@ class WKS_OT_shot_cycle_gp_objects(Operator):
 
 class WKS_OT_shot_new_gp_object(Operator):
     bl_idname = "wks_shot.new_gp_object"
-    bl_label = "New Grease Pencil Objects"
+    bl_label = "New Grease Pencil"
     bl_description = "Create new grease pencil object in current shot and switch into Draw mode if possible"
     bl_options = {"REGISTER", "UNDO"}
 
@@ -873,6 +873,7 @@ def reload_embedded_script():
 
 
 def register_wks_keymap():
+    logger.debug("Registering keymaps")
     apptemplate_path = get_apptemplate_path()
     sys.path.append(apptemplate_path)
     from app_lib.Blender2DKeymap import KeyMap
@@ -883,6 +884,7 @@ def register_wks_keymap():
     keyconfig_init_from_data(kc_active, KeyMap.keyconfig_data)
     kc_addon = wm.keyconfigs.addon  # insert keymap item to addon
     if kc_addon:
+        logger.debug("Registering pie menu shortcut")
         km = kc_addon.keymaps.new(name="3D View", space_type="VIEW_3D")
         kmi = km.keymap_items.new("wm.call_menu_pie", type="E", value="PRESS")
         kmi.properties.name = VIEW3D_MT_PIE_wks_storyboard.bl_idname

@@ -250,10 +250,18 @@ def get_fps(scene):
     return scene.render.fps / scene.render.fps_base
 
 
+def get_endframe(frame_next_shot):
+    return frame_next_shot - 1
+
+
+def get_endframe_padded(frame_end):
+    return frame_end + 1
+
+
 def get_shot_duration(scene, marker):
     shot_frame = marker.frame
     marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
-    frame_diff = (marker_next_shot.frame if marker_next_shot else scene.frame_end) - shot_frame
+    frame_diff = get_endframe(marker_next_shot.frame if marker_next_shot else scene.frame_end) - shot_frame
     return frame_diff
 
 
@@ -498,7 +506,7 @@ def adjust_preview_range(scene, marker_shot=None):
         marker_shot = get_shot(scene)
     shot_frame = marker_shot.frame if marker_shot else scene.frame_start
     marker_next_shot = get_shot(scene, frame=shot_frame, offset=1)
-    shot_frame_end = (marker_next_shot.frame if marker_next_shot else scene.frame_end)
+    shot_frame_end = get_endframe(marker_next_shot.frame if marker_next_shot else scene.frame_end)
 
     scene.frame_preview_start = shot_frame
     scene.frame_preview_end = shot_frame_end
@@ -576,9 +584,23 @@ class WKS_OT_shot_new(Operator):
         logger.info("CREATING SHOT")
 
         scene = context.scene
+        duration_min = get_fps(scene)
         coll = get_shot_ctrl_collection(scene)  # create collection for shot controller before ones for any shot
         marker_shot = get_shot(scene)
-        frame_new_shot = self.get_frame_new_shot(scene, marker_shot)
+        if marker_shot:
+            frame_current_shot = marker_shot.frame
+            frame_new_shot = max(get_endframe_padded(frame_current_shot + duration_min), scene.frame_current)
+            frame_new_shot_end = get_endframe_padded(frame_new_shot + duration_min)
+
+            marker_other_shot = get_shot(scene, frame=frame_new_shot_end - 1)
+            if marker_other_shot != marker_shot:
+                self.report({"WARNING"}, "Not enough excess duration to create a new shot here. "
+                                         "Any given shot must be at least one second long.")
+                frame_new_shot = None
+            elif scene.frame_end < frame_new_shot_end:
+                scene.frame_end = frame_new_shot_end + 1
+        else:
+            frame_new_shot = scene.frame_start
 
         if frame_new_shot is not None:
             name_new_shot = create_shot_name(scene)
@@ -594,32 +616,9 @@ class WKS_OT_shot_new(Operator):
             marker_new_shot.camera = camera_obj
             activate_shot_objects(context, name_new_shot)
 
-            fps_real = get_fps(scene)
-            frame_end_min = frame_new_shot + fps_real
-            if scene.frame_end < frame_end_min:
-                scene.frame_end = frame_end_min
-
             adjust_shot_transitions(scene, marker_shot)
 
         return {"FINISHED"}
-
-    def get_frame_new_shot(self, scene: bpy.types.Scene, marker_shot: bpy.types.TimelineMarker) -> int:
-        if marker_shot:
-            fps_real = get_fps(scene)
-            frame_current_shot = marker_shot.frame
-            frame_new_shot = max(frame_current_shot + fps_real, scene.frame_current)
-            frame_end_min = frame_new_shot + fps_real
-            marker_other_shot = get_shot(scene, frame=frame_end_min - 1)
-            if marker_other_shot != marker_shot:
-                self.report({"WARNING"}, "Not enough excess duration to create a new shot here. "
-                                         "Any given shot must be at least one second long.")
-                frame_new_shot = None
-            elif scene.frame_end < frame_end_min:
-                scene.frame_end = frame_end_min
-        else:
-            frame_new_shot = scene.frame_start
-
-        return frame_new_shot
 
 
 class WKS_OT_shot_reparent_objects(Operator):

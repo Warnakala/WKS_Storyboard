@@ -467,7 +467,7 @@ def adjust_shot_transitions(scene, first_shot_marker):
         shot_name = shot_marker.name
         shot_duration = get_shot_duration(scene, shot_marker)
         shot_frame = shot_marker.frame
-        shot_frame_end = shot_frame + shot_duration
+        shot_frame_end = get_endframe_padded(shot_frame + shot_duration)
         action_group = action.groups.get(shot_name)
         if action_group is None:
             action.groups.new(shot_name)
@@ -598,7 +598,7 @@ class WKS_OT_shot_new(Operator):
                                          "Any given shot must be at least one second long.")
                 frame_new_shot = None
             elif scene.frame_end < frame_new_shot_end:
-                scene.frame_end = frame_new_shot_end + 1
+                scene.frame_end = frame_new_shot_end
         else:
             frame_new_shot = scene.frame_start
 
@@ -719,7 +719,7 @@ class WKS_OT_shot_toggle_isolate(Operator):
     bl_idname = "wks_shot.toggle_isolate"
     bl_label = "Toggle Shot Isolate"
     bl_description = "Toggle shot isolate"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER"}
 
     def execute(self, context):
         scene = context.scene
@@ -952,6 +952,9 @@ def prop_shot_duration_set(self, value):
     duration_min = (int(min_str) * fps * 60) if min_str else 0
     duration_sec = (int(sec_str) * fps) if sec_str else 0
     duration = (int(frame_str) if frame_str else 0) + duration_sec + duration_min
+
+    # avoid too short duration
+    duration = max(fps, duration)
 
     prev_duration = get_shot_duration(scene, self)
     delta_duration = duration - prev_duration

@@ -444,7 +444,7 @@ def adjust_shot_keyframes(scene, first_shot_frame, delta):
                 action = obj.animation_data.action
                 for fcurve in action.fcurves:
                     for point in fcurve.keyframe_points:
-                        point.co[0] += delta
+                        point.co_ui[0] += delta
             bpy.context.view_layer.objects.active = None
             obj.select_set(False)
     scene.frame_end += delta

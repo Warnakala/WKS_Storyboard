@@ -958,7 +958,11 @@ def prop_shot_duration_set(self, value):
     shot_frame = self.frame
 
     # move all shots behind shot modified
+    obj = bpy.context.active_object
+    obj.select_set(False)
     adjust_shot_keyframes(scene, shot_frame, delta_duration)
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
 
     is_current_or_next_shot = shot_frame <= scene.frame_current
     is_next_shot = shot_frame + prev_duration <= scene.frame_current

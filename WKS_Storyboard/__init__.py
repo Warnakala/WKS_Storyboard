@@ -417,6 +417,27 @@ def parent_to_shot_controller(context, shot_name, obj_list):
         obj.parent_bone = bone.name
 
 
+def adjust_shot_keyframes(scene, first_shot_frame, delta):
+    marker_iterator = get_shot_marker_iterator(scene)
+    for marker in filter((lambda m: m.frame > first_shot_frame), marker_iterator):
+        marker.frame += delta
+        shot_name = marker.name
+        coll: bpy.types.Collection = get_shot_obj_collection(scene, shot_name)
+        for obj in coll.all_objects:
+            if obj.type == "GPENCIL":
+                gp: bpy.types.GreasePencil = obj.data
+                for gp_layer in gp.layers:
+                    for gp_frame in gp_layer.frames:
+                        gp_frame.frame_number += delta
+            if obj.animation_data and obj.animation_data.action:
+                action = obj.animation_data.action
+                for fcurve in action.fcurves:
+                    for point in fcurve.keyframe_points:
+                        point.co[0] += delta
+    scene.frame_end += delta
+    return first_shot_frame
+
+
 def adjust_shot_transitions(scene, first_shot_marker):
     def get_loc_keyframe_list(sf, sfe):
         move_unit = 100000
@@ -933,10 +954,7 @@ def prop_shot_duration_set(self, value):
     shot_frame = self.frame
 
     # move all shots behind shot modified
-    marker_iterator = get_shot_marker_iterator(scene)
-    for marker in filter((lambda m: m.frame > shot_frame), marker_iterator):
-        marker.frame += delta_duration
-    scene.frame_end += delta_duration
+    adjust_shot_keyframes(scene, shot_frame, delta_duration)
 
     is_current_or_next_shot = shot_frame <= scene.frame_current
     is_next_shot = shot_frame + prev_duration <= scene.frame_current

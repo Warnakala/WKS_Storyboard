@@ -424,16 +424,21 @@ def adjust_shot_keyframes(scene, first_shot_frame, delta):
         shot_name = marker.name
         coll: bpy.types.Collection = get_shot_obj_collection(scene, shot_name)
         for obj in coll.all_objects:
+            bpy.context.view_layer.objects.active = obj
             if obj.type == "GPENCIL":
+                bpy.ops.object.mode_set(mode="PAINT_GPENCIL")
                 gp: bpy.types.GreasePencil = obj.data
                 for gp_layer in gp.layers:
                     for gp_frame in gp_layer.frames:
                         gp_frame.frame_number += delta
+                bpy.ops.object.mode_set(mode="OBJECT")
             if obj.animation_data and obj.animation_data.action:
                 action = obj.animation_data.action
                 for fcurve in action.fcurves:
                     for point in fcurve.keyframe_points:
                         point.co[0] += delta
+            bpy.context.view_layer.objects.active = None
+            obj.select_set(False)
     scene.frame_end += delta
     return first_shot_frame
 

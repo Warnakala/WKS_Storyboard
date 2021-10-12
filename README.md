@@ -3,6 +3,11 @@ WKS_Storyboard
 
 **WKS_Storyboard** is an application template aimed to simplify creating a multi-shot storyboard/animatic in Blender, using both Grease Pencil strokes and regular 3D objects.
 
+User Interface
+--------------
+
+The template's initialization code inserts identical menu in **3D View**, **Dopesheet** and **Sequencer** areas' header, and a separate tab **WKS** in **3D View**'s sidepanel. In addition, a pie menu is accessible in the **3D View** through hotkey **E**. 
+
 Available Functions
 -------------------
 
